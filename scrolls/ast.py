@@ -88,7 +88,7 @@ class AST:
     def prettify(self) -> str:
         return self.root.prettify()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"ScrollAST({repr(self.root)}"
 
 
@@ -149,7 +149,7 @@ class ASTNode:
     def has_token(self) -> bool:
         return self._tok is not None
 
-    def wrap(self, node_type: ASTNodeType, as_child=False) -> 'ASTNode':
+    def wrap(self, node_type: ASTNodeType, as_child: bool = False) -> 'ASTNode':
         new_node = ASTNode(
             node_type,
             self.tok
@@ -167,10 +167,10 @@ class ASTNode:
         assert self._tok is not None
         return self._tok.value
 
-    def __str__(self):
+    def __str__(self) -> str:
         return repr(self)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self.type is ASTNodeType.STRING:
             return f"ScrollASTNode({self.type.name}, '{str(self._tok)}')"
         else:
@@ -226,7 +226,7 @@ class Tokenizer:
     def get_char(self) -> str:
         return self.string[self.char]
 
-    def next_char(self):
+    def next_char(self) -> None:
         char = self.get_char()
         if char == "\n":
             self.current_line += 1
@@ -336,7 +336,7 @@ class Tokenizer:
 
         return None
 
-    def handle_consume_rest_off(self, tok: Token):
+    def handle_consume_rest_off(self, tok: Token) -> None:
         if tok.type in (TokenType.COMMAND_SEP, TokenType.CLOSE_BLOCK, TokenType.CLOSE_PAREN):
             self.previous_token_was_sep = True
             return
@@ -358,7 +358,7 @@ class Tokenizer:
                 self.consume_rest_state = TokenizeConsumeRestState.COUNTING
                 self.consume_rest_count = count
 
-    def handle_consume_rest_counting(self, tok: Token):
+    def handle_consume_rest_counting(self, tok: Token) -> None:
         self.previous_token_was_sep = False
 
         # Only count down on string literals.
@@ -374,7 +374,7 @@ class Tokenizer:
             self.consume_rest_state = TokenizeConsumeRestState.OFF
             self.consume_rest_count = 0
 
-    def handle_consume_rest_consume(self, tok: Token):
+    def handle_consume_rest_consume(self, tok: Token) -> None:
         # This function runs AFTER a CONSUME_REST consumption. So, just set consume_rest back to OFF.
         self.consume_rest_state = TokenizeConsumeRestState.OFF
         self.consume_rest_count = 0
@@ -382,7 +382,7 @@ class Tokenizer:
     # TODO
     # Consume rest state handler. All this code is pretty ugly, and does not account
     # for more advanced usage.
-    def handle_consume_rest(self, tok: Token):
+    def handle_consume_rest(self, tok: Token) -> None:
         f_map: t.Mapping[TokenizeConsumeRestState, t.Callable[[Token], None]] = {
             TokenizeConsumeRestState.OFF: self.handle_consume_rest_off,
             TokenizeConsumeRestState.COUNTING: self.handle_consume_rest_counting,
@@ -645,7 +645,7 @@ parse_eventual_string = parse_choice(
 def parse_command_args(ctx: ParseContext) -> ASTNode:
     logger.debug("parse_command_args")
     args_node = ASTNode(ASTNodeType.COMMAND_ARGUMENTS, None)
-    args_node.children = parse_greedy(parse_eventual_string)(ctx)
+    args_node.children.extend(parse_greedy(parse_eventual_string)(ctx))
 
     if args_node.children:
         args_node.tok = args_node.children[0].tok
@@ -670,7 +670,7 @@ def parse_control_args(ctx: ParseContext) -> ASTNode:
     args_node = expect(TokenType.OPEN_PAREN)(ctx).wrap(
         ASTNodeType.CONTROL_ARGUMENTS
     )
-    args_node.children = parse_greedy(parse_strtok)(ctx)
+    args_node.children.extend(parse_greedy(parse_strtok)(ctx))
     expect(
         TokenType.CLOSE_PAREN,
         fatal_on_error=True
@@ -727,14 +727,12 @@ def parse_block_body(ctx: ParseContext, top_level: bool = False) -> t.Sequence[A
 
         nodes.append(node)
 
-    return nodes
-
 
 def parse_block(ctx: ParseContext) -> ASTNode:
     node = expect(TokenType.OPEN_BLOCK)(ctx).wrap(
         ASTNodeType.BLOCK
     )
-    node.children = parse_block_body(ctx)
+    node.children.extend(parse_block_body(ctx))
     expect(
         TokenType.CLOSE_BLOCK,
         fatal_on_error=True
@@ -754,7 +752,7 @@ parse_statement = parse_choice(
 def parse_root(tokenizer: Tokenizer) -> ASTNode:
     ctx = ParseContext(tokenizer)
     root_node = ASTNode(ASTNodeType.ROOT, None)
-    root_node.children = parse_block_body(ctx, top_level=True)
+    root_node.children.extend(parse_block_body(ctx, top_level=True))
 
     return root_node
 

@@ -23,14 +23,15 @@ __all__ = (
 logger = logging.getLogger(__name__)
 
 T = t.TypeVar("T")
-AnyContextTV = t.TypeVar("AnyContextTV", bound='ScrollInterpreterContext')
+T_co = t.TypeVar("T_co", covariant=True)
+AnyContextTV = t.TypeVar("AnyContextTV", bound='InterpreterContext')
 
 
 class InterpreterContext:
     """
     Base class for the command interpreter context.
     """
-    def __init__(self, *_):
+    def __init__(self, *_: t.Any):
         self._current_node: t.Optional[ast.ASTNode] = None
         self._call_name: t.Optional[str] = None
         self._args: t.Sequence[str] = []
@@ -85,7 +86,7 @@ class InterpreterContext:
         return self._current_node
 
     @current_node.setter
-    def current_node(self, node: ast.ASTNode):
+    def current_node(self, node: ast.ASTNode) -> None:
         self._current_node = node
 
     def _call_check(self) -> None:
@@ -97,7 +98,7 @@ class InterpreterContext:
     @property
     def call_name(self) -> str:
         self._call_check()
-        return self._call_name
+        return t.cast(str, self._call_name)
 
     @property
     def args(self) -> t.Sequence[str]:
@@ -137,31 +138,31 @@ class InterpreterContext:
         self._control_node = None
 
 
-class CallHandler(t.Protocol[T]):
+class CallHandler(t.Protocol[T_co]):
     """
     The minimum interface required to implement a call handler.
     """
-    def handle_call(self, context: AnyContextTV) -> T: ...
+    def handle_call(self, context: AnyContextTV) -> T_co: ...
     def __contains__(self, command_name: str) -> bool: ...
 
 
-class ScrollCallback(t.Protocol[T]):
+class ScrollCallback(t.Protocol[T_co]):
     """
     Protocol for Callbacks passed into CallbackCallHandlers.
     """
-    def __call__(self, context: AnyContextTV) -> T: ...
+    def __call__(self, context: AnyContextTV) -> T_co: ...
 
 
-class CallbackCallHandler(t.Generic[T]):
+class CallbackCallHandler(t.Generic[T_co]):
     """
     A basic call handler that uses Callables (ScrollCallback[T]) to
     implement a call handler.
     """
-    def __init__(self):
-        self.calls: t.MutableMapping[str, ScrollCallback[T]] = {}
+    def __init__(self) -> None:
+        self.calls: t.MutableMapping[str, ScrollCallback[T_co]] = {}
         self.aliases: t.MutableMapping[str, str] = {}
 
-    def add_call(self, name: str, command: ScrollCallback[T]) -> None:
+    def add_call(self, name: str, command: ScrollCallback[T_co]) -> None:
         self.calls[name] = command
 
     def add_alias(self, alias: str, name: str) -> None:
@@ -175,13 +176,13 @@ class CallbackCallHandler(t.Generic[T]):
             if value == name:
                 del self.aliases[key]
 
-    def get_callback(self, name: str) -> ScrollCallback[T]:
+    def get_callback(self, name: str) -> ScrollCallback[T_co]:
         if name in self.calls:
             return self.calls[name]
 
         return self.calls[self.aliases[name]]
 
-    def handle_call(self, context: InterpreterContext) -> T:
+    def handle_call(self, context: InterpreterContext) -> T_co:
         return self.get_callback(context.call_name)(context)
 
     def __contains__(self, command_name: str) -> bool:
@@ -199,7 +200,7 @@ class DebugCommandHandler(CallbackCommandHandler):
     """
     Implements debugging commands.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.add_call("print", self.printcommand)
@@ -212,7 +213,7 @@ class StandardControlHandler(CallbackControlHandler):
     """
     Implements built-in control statements
     """
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.add_call("repeat", self.repeat)
         self.add_call("for", self._for)
@@ -276,7 +277,7 @@ class CallHandlerContainer(t.Generic[T]):
     """
     Generic container for ScrollCallHandlers.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         self._handlers: t.MutableMapping[str, CallHandler[T]] = {}
 
     def add(self, handler: CallHandler[T], name: str = "") -> None:
@@ -398,7 +399,7 @@ class Interpreter:
         script: str,
         context: t.Optional[InterpreterContext] = None,
         consume_rest_triggers: t.Mapping[str, int] = types.MappingProxyType({})
-    ):
+    ) -> InterpreterContext:
         tokenizer = ast.Tokenizer(script, consume_rest_triggers)
         tree = ast.parse_scroll(tokenizer)
         return self.interpret_ast(tree, context)

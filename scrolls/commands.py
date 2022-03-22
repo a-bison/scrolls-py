@@ -6,7 +6,6 @@ import dataclasses
 import numbers
 
 from . import interpreter
-from . import errors
 from . import ast
 
 import enum
@@ -15,7 +14,7 @@ import typing as t
 
 logger = logging.getLogger(__name__)
 
-T = t.TypeVar("T")
+T = t.TypeVar("T", str, int, float, bool)
 
 
 def rangelimit(
@@ -90,8 +89,8 @@ class OptionChoiceError(OptionError, t.Generic[T]):
         choices: t.Sequence[T]
     ):
         super().__init__(node)
-        self.bad_choice = bad_choice
-        self.choices = choices
+        self.bad_choice: T = bad_choice
+        self.choices: t.Sequence[T] = choices
 
     def __str__(self) -> str:
         choices_str = ", ".join([str(choice) for choice in self.choices])
@@ -123,7 +122,7 @@ class OptionModifier(enum.Enum):
 
 
 class GenericCommandHandler(interpreter.CallbackCallHandler[None]):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._consume_rest_triggers: t.MutableMapping[str, int] = {}
 
@@ -197,6 +196,13 @@ class Command(t.Generic[T], abc.ABC):
                 context.current_node = nodes[0]
 
             try:
+                if option.modifier == OptionModifier.CONSUME_REST:
+                    if not args:
+                        raise OptionRequiredMissingError()
+
+                    converted_opts.append(args[0])
+                    break
+
                 _result, num_consumed = consume_option(option, args, nodes)
             except OptionRequiredMissingError as e:
                 raise interpreter.InterpreterError(
@@ -231,14 +237,14 @@ class Command(t.Generic[T], abc.ABC):
 @dataclasses.dataclass
 class Option(t.Generic[T]):
     name: str
-    type: t.Type[T] = str
+    type: t.Type[T] = t.cast(t.Type[T], str)  # T is allowed to be str, but mypy complains. Cast it.
     minimum: t.Optional[numbers.Real] = None
-    default: t.Optional[T] = None,
+    default: t.Optional[T] = None
     maximum: t.Optional[numbers.Real] = None
     modifier: OptionModifier = OptionModifier.NONE
     choices: t.Sequence[T] = ()
 
-    def verify_option(self):
+    def verify_option(self) -> None:
         bad_consume_rest = (
             self.modifier == OptionModifier.CONSUME_REST and
             not self.type == str
@@ -277,12 +283,6 @@ def consume_option(
 ) -> tuple[t.Sequence[T], int]:
     logger.debug(f"consume_option: args={str(args)}")
 
-    if option.modifier == OptionModifier.CONSUME_REST:
-        if not args:
-            raise OptionRequiredMissingError()
-
-        return [args[0]], 1
-
     idx = 0
 
     if not args and option.default is not None:
@@ -313,8 +313,8 @@ def consume_option(
                 logger.debug(f"GREEDY: Got {str(converted_args)}")
                 return converted_args, idx
 
-        logger.debug(f"GREEDY: Exhausted arguments. Got {str(converted_args)}")
-        return converted_args, idx
+    logger.debug(f"GREEDY: Exhausted arguments. Got {str(converted_args)}")
+    return converted_args, idx
 
 
 def set_help(
