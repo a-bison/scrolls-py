@@ -160,7 +160,7 @@ class GenericCommandHandler(interpreter.CallbackCallHandler[None]):
         return self._consume_rest_triggers
 
 
-class Command(t.Generic[T], abc.ABC):
+class Command(abc.ABC):
     def __init__(
         self,
         name: str,
