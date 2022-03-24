@@ -208,9 +208,16 @@ class Tokenizer:
 
         self.string_literal_stop = "".join([key for key in self.charmap]) + self.whitespace
 
-        self.consume_rest_stop = [
-            "\n", ";", BLOCK_CLOSE
-        ]
+        self.consume_rest_stop: t.Sequence[str] = []
+        self.set_consume_rest_all(False)
+
+    def set_consume_rest_all(self, consume_all: bool) -> None:
+        if not consume_all:
+            self.consume_rest_stop = [
+                "\n", ";", BLOCK_CLOSE
+            ]
+        else:
+            self.consume_rest_stop = []
 
     def error(self, err_type: t.Type[errors.PositionalError], message: str) -> t.NoReturn:
         raise err_type(

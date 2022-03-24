@@ -404,6 +404,29 @@ class Interpreter:
         tree = ast.parse_scroll(tokenizer)
         return self.interpret_ast(tree, context)
 
+    def run_statement(
+        self,
+        statement: str,
+        context: t.Optional[InterpreterContext] = None,
+        consume_rest_triggers: t.Mapping[str, int] = types.MappingProxyType({}),
+        consume_rest_consumes_all: bool = False
+    ) -> InterpreterContext:
+        # Set up parsing and parse statement
+        tokenizer = ast.Tokenizer(statement, consume_rest_triggers)
+        tokenizer.set_consume_rest_all(consume_rest_consumes_all)
+        parse_ctx = ast.ParseContext(tokenizer)
+        statement_node = ast.parse_statement(parse_ctx)
+
+        # Interpret statement
+        if context is None:
+            context = self.context_cls(statement_node)
+            context.interpreter = self
+            context.script = statement
+
+        self.interpret_statement(context, statement_node)
+
+        return context
+
     @staticmethod
     def test_parse(
         script: str,
