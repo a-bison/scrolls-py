@@ -1,6 +1,6 @@
-import typing as t
 import functools
 import math
+import typing as t
 
 __all__ = (
     "format_positional_error",

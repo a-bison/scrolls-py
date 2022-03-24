@@ -3,14 +3,12 @@
 #
 import abc
 import dataclasses
-import numbers
-
-from . import interpreter
-from . import ast
-
 import enum
 import logging
+import numbers
 import typing as t
+
+from . import ast, interpreter
 
 logger = logging.getLogger(__name__)
 
