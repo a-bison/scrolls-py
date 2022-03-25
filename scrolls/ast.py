@@ -617,6 +617,19 @@ def expect(
     return _
 
 
+def parse_try(
+    parser: ParserT
+) -> t.Callable[[ParseContext], bool]:
+    def _(ctx: ParseContext) -> bool:
+        try:
+            parser(ctx)
+            return True
+        except errors.ParseError:
+            return False
+
+    return _
+
+
 def expect_eof(ctx: ParseContext) -> ASTNode:
     try:
         parse_expect(ctx, TokenType.EOF)
@@ -727,10 +740,22 @@ def parse_block_body(ctx: ParseContext, top_level: bool = False) -> t.Sequence[A
                     fatal=True
                 )
 
-        node = parse_statement(ctx)
-
-        if node.type == ASTNodeType.NONE:
+        # If we hit a command separator, just consume it and continue.
+        if parse_try(expect_command_separator)(ctx):
             continue
+
+        # Actually try to parse the next statement. If that fails, it means we found some non-statement
+        # structure inside a block, which is not legal. Error out with something more descriptive.
+        try:
+            node = parse_statement(ctx)
+        except errors.ParseError:
+            parse_error(
+                ctx,
+                errors.ParseError,
+                "Expected statement or block here.",
+                fatal=True
+            )
+            raise  # Not necessary, but satisfies linters.
 
         nodes.append(node)
 
@@ -749,7 +774,6 @@ def parse_block(ctx: ParseContext) -> ASTNode:
 
 
 parse_statement = parse_choice(
-    expect_command_separator,
     parse_block,
     parse_control,
     parse_command
