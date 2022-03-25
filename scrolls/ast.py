@@ -214,7 +214,7 @@ class Tokenizer:
     def set_consume_rest_all(self, consume_all: bool) -> None:
         if not consume_all:
             self.consume_rest_stop = [
-                "\n", ";", BLOCK_CLOSE
+                "\n", ";", BLOCK_OPEN, BLOCK_CLOSE
             ]
         else:
             self.consume_rest_stop = []
