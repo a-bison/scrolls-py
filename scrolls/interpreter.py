@@ -39,6 +39,7 @@ class InterpreterContext:
         self._control_node: t.Optional[ast.ASTNode] = None
         self._vars: t.MutableMapping[str, str] = {}
         self._script: t.Optional[str] = None
+        self.statement_count = 0
 
     def set_var(self, name: str, value: str) -> None:
         self._vars[name] = value
@@ -236,12 +237,6 @@ class StandardControlHandler(CallbackControlHandler):
                 f"'{context.args[0]}' is not a valid integer"
             )
 
-        if repeat_times > interpreter.repeat_limit:
-            raise InterpreterError(
-                context,
-                f"cannot repeat more than {interpreter.repeat_limit} times"
-            )
-
         control_node = context.control_node
         for _ in range(repeat_times):
             interpreter.interpret_statement(context, control_node)
@@ -376,14 +371,21 @@ class Interpreter:
     """
     def __init__(
         self,
-        context_cls: t.Type[InterpreterContext] = InterpreterContext
+        context_cls: t.Type[InterpreterContext] = InterpreterContext,
+        statement_limit: int = 0
     ):
         self._command_handlers: CallHandlerContainer[None] = CallHandlerContainer()
         self._control_handlers: CallHandlerContainer[None] = CallHandlerContainer()
         self.context_cls = context_cls
 
-        self.repeat_limit = 20
+        self.statement_limit = statement_limit
         self._control_handlers.add(StandardControlHandler())
+
+    def over_statement_limit(self, context: InterpreterContext) -> bool:
+        if self.statement_limit == 0:
+            return True
+        else:
+            return context.statement_count > self.statement_limit
 
     @property
     def command_handlers(self) -> CallHandlerContainer[None]:
@@ -532,4 +534,11 @@ class Interpreter:
         else:
             raise InternalInterpreterError(
                 context, f"Bad statement type {type.name}"
+            )
+
+        context.statement_count += 1
+        if self.over_statement_limit(context):
+            raise InterpreterError(
+                context,
+                f"Exceeded maximum statement limit of {self.statement_limit}."
             )
