@@ -421,8 +421,9 @@ class Interpreter:
         # Interpret statement
         if context is None:
             context = self.context_cls(statement_node)
-            context.interpreter = self
-            context.script = statement
+
+        context.interpreter = self
+        context.script = statement
 
         self.interpret_statement(context, statement_node)
 
