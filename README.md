@@ -127,6 +127,27 @@ will print...
 5
 ```
 
+### Substitution Calls
+
+In addition to variable expansion, expansions may call into python code, in which case
+the python code will determine what the expansion is replaced with. For example,
+`$(select hello world)` will randomly be replaced by `hello` 50% of the time, and `world` otherwise. This may
+be used to randomly select arguments to commands, or randomly select the commands
+themselves:
+
+```
+command $(select arg1 arg2)
+$(select command1 command2) hello world
+```
+
+The general form of a substitution call is `$(NAME SPACE_DELIMITED_ARGUMENTS)`.
+Substitution calls and variable references may be nested indefinitely:
+
+```
+set v test
+command $(select $(select arg1 arg2 $v) $v)
+```
+
 ### Comments
 
 Scrolls does not currently support comments.
