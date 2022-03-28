@@ -1,5 +1,4 @@
 import logging
-import random
 import types
 import typing as t
 
@@ -14,8 +13,6 @@ __all__ = (
     "InterpreterError",
     "InternalInterpreterError",
     "ScrollCallback",
-    "DebugCommandHandler",
-    "StandardControlHandler",
     "CallHandlerContainer",
     "CallbackCallHandler"
 )
@@ -213,126 +210,6 @@ CallbackControlHandler = CallbackCallHandler[None]
 CallbackExpansionHandler = CallbackCallHandler[str]
 
 
-class DebugCommandHandler(CallbackCommandHandler):
-    """
-    Implements debugging commands.
-    """
-    def __init__(self) -> None:
-        super().__init__()
-
-        self.add_call("print", self.printcommand)
-
-    def printcommand(self, context: InterpreterContext) -> None:
-        print(" ".join(context.args))
-
-
-class StandardCommandHandler(CallbackCommandHandler):
-    """
-    Implements built-in command statements
-    """
-    def __init__(self) -> None:
-        super().__init__()
-        self.add_call("set", self.set)
-        self.add_call("unset", self.unset)
-
-    def set(self, context: InterpreterContext) -> None:
-        if not context.args:
-            raise InterpreterError(
-                context,
-                "set: variable name is not specified"
-            )
-
-        context.set_var(context.args[0], " ".join(context.args[1:]))
-
-    def unset(self, context: InterpreterContext) -> None:
-        if not context.args:
-            raise InterpreterError(
-                context,
-                "unset: variable name is not specified"
-            )
-
-        try:
-            context.del_var(context.args[0])
-        except KeyError:
-            raise InterpreterError(
-                context,
-                f"unset: no such variable {context.args[0]}"
-            )
-
-
-class StandardControlHandler(CallbackControlHandler):
-    """
-    Implements built-in control statements
-    """
-    def __init__(self) -> None:
-        super().__init__()
-        self.add_call("repeat", self.repeat)
-        self.add_call("for", self._for)
-
-    def repeat(self, context: InterpreterContext) -> None:
-        interpreter = context.interpreter
-
-        if len(context.args) != 1:
-            raise InterpreterError(
-                context,
-                "repeat requires exactly one argument, the number of times to repeat"
-            )
-
-        context.current_node = context.arg_nodes[0]
-
-        try:
-            repeat_times = int(context.args[0])
-        except ValueError:
-            raise InterpreterError(
-                context,
-                f"'{context.args[0]}' is not a valid integer"
-            )
-
-        control_node = context.control_node
-        for _ in range(repeat_times):
-            interpreter.interpret_statement(context, control_node)
-
-    def _for(self, context: InterpreterContext) -> None:
-        interpreter = context.interpreter
-
-        if not context.args or len(context.args) < 3:
-            raise InterpreterError(
-                context,
-                "bad format in !for: expected !for(VARNAME in ARGS)"
-            )
-
-        var_name, _in, *items = context.args
-
-        if _in != "in":
-            context.current_node = context.arg_nodes[1]
-            raise InterpreterError(
-                context,
-                f"unexpected token '{_in}', should be 'in'"
-            )
-
-        control_node = context.control_node
-        for item in items:
-            context.set_var(var_name, item)
-            interpreter.interpret_statement(context, control_node)
-
-        context.del_var(var_name)
-
-
-class StandardExpansionHandler(CallbackExpansionHandler):
-    """
-    Implements standard expansions.
-    """
-    def __init__(self) -> None:
-        super().__init__()
-        self.add_call("select", self.select)
-
-    def select(self, context: InterpreterContext) -> str:
-        """
-        Randomly selects one of the arguments and returns it.
-        """
-        return random.choice(context.args)
-
-
 class CallHandlerContainer(t.Generic[T]):
     """
     Generic container for ScrollCallHandlers.
@@ -446,9 +323,6 @@ class Interpreter:
         self.context_cls = context_cls
 
         self.statement_limit = statement_limit
-        self._control_handlers.add(StandardControlHandler())
-        self._command_handlers.add(StandardCommandHandler())
-        self._expansion_handlers.add(StandardExpansionHandler())
 
     def over_statement_limit(self, context: InterpreterContext) -> bool:
         if self.statement_limit == 0:
