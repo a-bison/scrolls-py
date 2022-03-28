@@ -98,8 +98,20 @@ Due to this definition, the following is also valid:
 
 ### Variable Substitution
 
-Scrolls supports variable expansion with `$`. In base Scrolls, this syntax is only used 
-for `for` control calls:
+Scrolls supports variable expansion with `$`. Variables may be set with the built-in `set`
+command call.
+
+```
+set test hello world
+print $test
+```
+will print...
+```
+hello world
+```
+
+There is also a built in `for` control call, which will run a code block repeatedly
+with different parameters.
 
 ```
 !for(x in 1 2 3 4 5) {
