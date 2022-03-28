@@ -33,7 +33,7 @@ print this is an example
 do-something 10 20
 ```
 
-A command name may be any string that does not contain `$ ! ( ) { } ;`. Arguments
+A command name may be any string that does not contain `$ ^ ! ( ) { } ;`. Arguments
 are set apart by spaces. Commands may be put on the same line using semicolons:
 
 ```
