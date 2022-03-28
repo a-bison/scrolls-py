@@ -189,9 +189,11 @@ class Command(abc.ABC):
         args = context.args
         nodes = context.arg_nodes
 
+        idx = 0
+
         for option in self.options:
             if nodes:
-                context.current_node = nodes[0]
+                context.current_node = nodes[idx]
 
             try:
                 if option.modifier == OptionModifier.CONSUME_REST:
@@ -201,7 +203,7 @@ class Command(abc.ABC):
                     converted_opts.append(args[0])
                     break
 
-                _result, num_consumed = consume_option(option, args, nodes)
+                _result, num_consumed = consume_option(option, args, nodes, idx)
             except OptionRequiredMissingError as e:
                 raise interpreter.InterpreterError(
                     context,
@@ -221,7 +223,7 @@ class Command(abc.ABC):
             converted_opts.append(result)
 
             args = args[num_consumed:]
-            nodes = nodes[num_consumed:]
+            idx += num_consumed
 
         return converted_opts
 
@@ -277,7 +279,8 @@ class Option(t.Generic[T]):
 def consume_option(
     option: Option[T],
     args: t.Sequence[str],
-    nodes: t.Sequence[ast.ASTNode]
+    nodes: interpreter.ArgSourceMap[ast.ASTNode],
+    arg_num: int
 ) -> tuple[t.Sequence[T], int]:
     logger.debug(f"consume_option: args={str(args)}")
 
@@ -292,7 +295,8 @@ def consume_option(
     converted_args: t.MutableSequence[T] = []
 
     while idx < len(args):
-        arg, node = args[idx], nodes[idx]
+        arg = args[idx]
+        node = nodes[arg_num + idx]
 
         try:
             converted_arg = option.convert_arg(arg, node)

@@ -31,6 +31,7 @@ OPEN_PAREN = "("
 CLOSE_PAREN = ")"
 CONTROL_SIGIL = "!"
 EXPANSION_SIGIL = "$"
+MULTI_SIGIL = "^"
 
 
 class TokenType(enum.Enum):
@@ -39,11 +40,12 @@ class TokenType(enum.Enum):
     OPEN_BLOCK = 3
     CLOSE_BLOCK = 4
     EXPANSION_SIGIL = 5
-    CONTROL_SIGIL = 6
-    COMMAND_SEP = 7
-    STRING_LITERAL = 8
-    EOF = 9
-    WHITESPACE = 10
+    MULTI_SIGIL = 6
+    CONTROL_SIGIL = 7
+    COMMAND_SEP = 8
+    STRING_LITERAL = 9
+    EOF = 10
+    WHITESPACE = 11
 
 
 class TokenizeConsumeRestState(enum.Enum):
@@ -62,9 +64,12 @@ class ASTNodeType(enum.Enum):
     BLOCK = 6
     CONTROL_CALL = 7
     CONTROL_ARGUMENTS = 8
-    EXPANSION_VAR = 9
-    EXPANSION_CALL = 10
-    EXPANSION_ARGUMENTS = 11
+    EXPANSION = 9
+    EXPANSION_SINGLE = 10
+    EXPANSION_MULTI = 11
+    EXPANSION_VAR = 12
+    EXPANSION_CALL = 13
+    EXPANSION_ARGUMENTS = 14
 
 
 # TODO: Add slots=True for python 3.10
@@ -203,7 +208,8 @@ class Tokenizer:
             BLOCK_OPEN: TokenType.OPEN_BLOCK,
             BLOCK_CLOSE: TokenType.CLOSE_BLOCK,
             EXPANSION_SIGIL: TokenType.EXPANSION_SIGIL,
-            CONTROL_SIGIL: TokenType.CONTROL_SIGIL
+            CONTROL_SIGIL: TokenType.CONTROL_SIGIL,
+            MULTI_SIGIL: TokenType.MULTI_SIGIL
         }
 
         self.string_literal_stop = "".join([key for key in self.charmap]) + self.whitespace
@@ -647,17 +653,33 @@ expect_command_separator = expect(TokenType.COMMAND_SEP)
 
 def parse_expansion_var(ctx: ParseContext) -> ASTNode:
     logger.debug("parse_expansion_var")
+    return parse_strtok(ctx).wrap(ASTNodeType.EXPANSION_VAR, as_child=True)
+
+
+def parse_expansion(ctx: ParseContext) -> ASTNode:
+    logger.debug("parse_expansion")
 
     expansion_node = expect(TokenType.EXPANSION_SIGIL)(ctx).wrap(
-        ASTNodeType.EXPANSION_VAR
+        ASTNodeType.EXPANSION
     )
-    expansion_node.children.append(parse_strtok(ctx))
+
+    multi_tok = parse_get(ctx, TokenType.MULTI_SIGIL)
+    if multi_tok is None:
+        expansion_node.children.append(
+            ASTNode(ASTNodeType.EXPANSION_SINGLE, None)
+        )
+    else:
+        expansion_node.children.append(
+            ASTNode(ASTNodeType.EXPANSION_MULTI, multi_tok)
+        )
+
+    expansion_node.children.append(parse_expansion_var(ctx))
 
     return expansion_node
 
 
 parse_eventual_string = parse_choice(
-    parse_expansion_var,
+    parse_expansion,
     parse_strtok
 )
 

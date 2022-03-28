@@ -26,6 +26,21 @@ T_co = t.TypeVar("T_co", covariant=True)
 AnyContextTV = t.TypeVar("AnyContextTV", bound='InterpreterContext')
 
 
+class ArgSourceMap(dict[int, T], t.Generic[T]):
+    """Utility class that maps arguments to some source."""
+
+    def __init__(self, *args: t.Any, **kwargs: t.Any):
+        super().__init__(*args, **kwargs)
+
+        self.count = 0
+
+    def add_args(self, args: t.Sequence, source: T) -> None:
+        for i, _ in enumerate(args):
+            self[i + self.count] = source
+
+        self.count += len(args)
+
+
 class InterpreterContext:
     """
     Base class for the command interpreter context.
@@ -34,7 +49,7 @@ class InterpreterContext:
         self._current_node: t.Optional[ast.ASTNode] = None
         self._call_name: t.Optional[str] = None
         self._args: t.Sequence[str] = []
-        self._arg_nodes: t.Sequence[ast.ASTNode] = []
+        self._arg_nodes: ArgSourceMap[ast.ASTNode] = ArgSourceMap()
         self._interpreter: t.Optional[Interpreter] = None
         self._control_node: t.Optional[ast.ASTNode] = None
         self._vars: t.MutableMapping[str, str] = {}
@@ -106,7 +121,7 @@ class InterpreterContext:
         return self._args
 
     @property
-    def arg_nodes(self) -> t.Sequence[ast.ASTNode]:
+    def arg_nodes(self) -> ArgSourceMap[ast.ASTNode]:
         self._call_check()
         return self._arg_nodes
 
@@ -123,7 +138,7 @@ class InterpreterContext:
         self,
         command: str,
         args: t.Sequence[str],
-        arg_nodes: t.Sequence[ast.ASTNode],
+        arg_nodes: ArgSourceMap[ast.ASTNode],
         control_node: t.Optional[ast.ASTNode] = None
     ) -> None:
         self._call_name = command
@@ -134,7 +149,7 @@ class InterpreterContext:
     def reset_call(self) -> None:
         self._call_name = None
         self._args = []
-        self._arg_nodes = []
+        self._arg_nodes = ArgSourceMap()
         self._control_node = None
 
 
@@ -207,6 +222,41 @@ class DebugCommandHandler(CallbackCommandHandler):
 
     def printcommand(self, context: InterpreterContext) -> None:
         print(" ".join(context.args))
+
+
+
+class StandardCommandHandler(CallbackCommandHandler):
+    """
+    Implements built-in command statements
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self.add_call("set", self.set)
+        self.add_call("unset", self.unset)
+
+    def set(self, context: InterpreterContext) -> None:
+        if not context.args:
+            raise InterpreterError(
+                context,
+                "set: variable name is not specified"
+            )
+
+        context.set_var(context.args[0], " ".join(context.args[1:]))
+
+    def unset(self, context: InterpreterContext) -> None:
+        if not context.args:
+            raise InterpreterError(
+                context,
+                "unset: variable name is not specified"
+            )
+
+        try:
+            context.del_var(context.args[0])
+        except KeyError:
+            raise InterpreterError(
+                context,
+                f"unset: no such variable {context.args[0]}"
+            )
 
 
 class StandardControlHandler(CallbackControlHandler):
@@ -380,6 +430,7 @@ class Interpreter:
 
         self.statement_limit = statement_limit
         self._control_handlers.add(StandardControlHandler())
+        self._command_handlers.add(StandardCommandHandler())
 
     def over_statement_limit(self, context: InterpreterContext) -> bool:
         if self.statement_limit == 0:
@@ -457,12 +508,18 @@ class Interpreter:
 
     def interpret_control(self, context: InterpreterContext, node: ast.ASTNode) -> None:
         context.current_node = node
+        arg_node_map: ArgSourceMap[ast.ASTNode] = ArgSourceMap()
 
         name_node, args_node, control_node = tuple(node.children)
         control_name = name_node.str_content()
-        control_args: t.Sequence = [arg_node.str_content() for arg_node in args_node.children]
+        control_args: t.MutableSequence[str] = []
 
-        context.set_call(control_name, control_args, args_node.children, control_node=control_node)
+        for arg_node in args_node.children:
+            arg = arg_node.str_content()
+            control_args.append(arg)
+            arg_node_map.add_args([arg], arg_node)
+
+        context.set_call(control_name, control_args, arg_node_map, control_node=control_node)
 
         try:
             handler = self.control_handlers.get_for_call(control_name)
@@ -475,12 +532,31 @@ class Interpreter:
 
     def interpret_command(self, context: InterpreterContext, node: ast.ASTNode) -> None:
         name_node, args_node = tuple(node.children)
-        command_name: str = self.interpret_maybe_string(context, name_node)
-        command_args: t.Sequence = [self.interpret_maybe_string(context, arg_node) for arg_node in args_node.children]
+        arg_node_map: ArgSourceMap[ast.ASTNode] = ArgSourceMap()
+
+        raw_cmd = list(self.interpret_string_or_expansion(context, name_node))
+
+        if not raw_cmd:
+            raise InterpreterError(
+                context,
+                f"Command must not expand to empty string."
+            )
+
+        arg_node_map.add_args(raw_cmd[1:], name_node)
+
+        for arg_node in args_node.children:
+            new_args = self.interpret_string_or_expansion(context, arg_node)
+            arg_node_map.add_args(new_args, arg_node)
+
+            raw_cmd += new_args
+
+        logger.debug(f"interpret_command: raw {raw_cmd}")
+        command_name = raw_cmd[0]
+        command_args: t.Sequence[str] = raw_cmd[1:]
 
         context.current_node = node
 
-        context.set_call(command_name, command_args, args_node.children)
+        context.set_call(command_name, command_args, arg_node_map)
 
         try:
             handler = self.command_handlers.get_for_call(command_name)
@@ -503,16 +579,49 @@ class Interpreter:
                 context, f"No such variable {var_name}."
             )
 
-    def interpret_maybe_string(self, context: InterpreterContext, node: ast.ASTNode) -> str:
+    def interpret_sub_expansion(self, context: InterpreterContext, node: ast.ASTNode) -> str:
+        """Get the raw string for an expansion."""
         context.current_node = node
 
-        if node.type == ast.ASTNodeType.STRING:
-            return node.str_content()
-        elif node.type == ast.ASTNodeType.EXPANSION_VAR:
+        if node.type == ast.ASTNodeType.EXPANSION_VAR:
             return self.interpret_variable_reference(context, node.children[0])
         else:
             raise InternalInterpreterError(
-                context, f"Bad node type for maybe_string: {node.type.name}"
+                context,
+                f"Bad expansion node type {node.type.name}"
+            )
+
+    def interpret_expansion(self, context: InterpreterContext, node: ast.ASTNode) -> t.Sequence[str]:
+        context.current_node = node
+
+        multi_node, expansion_node = node.children
+
+        if multi_node.type == ast.ASTNodeType.EXPANSION_MULTI:
+            multi = True
+        elif multi_node.type == ast.ASTNodeType.EXPANSION_SINGLE:
+            multi = False
+        else:
+            raise InternalInterpreterError(
+                context,
+                f"Bad expansion multi_node type {multi_node.type.name}"
+            )
+
+        str = self.interpret_sub_expansion(context, expansion_node)
+        if multi:
+            return [s.strip() for s in str.split()]
+        else:
+            return [str]
+
+    def interpret_string_or_expansion(self, context: InterpreterContext, node: ast.ASTNode) -> t.Sequence[str]:
+        context.current_node = node
+
+        if node.type == ast.ASTNodeType.STRING:
+            return [node.str_content()]
+        elif node.type == ast.ASTNodeType.EXPANSION:
+            return self.interpret_expansion(context, node)
+        else:
+            raise InternalInterpreterError(
+                context, f"Bad node type for string_or_expansion: {node.type.name}"
             )
 
     def interpret_block(self, context: InterpreterContext, node: ast.ASTNode) -> None:
