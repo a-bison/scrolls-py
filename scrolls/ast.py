@@ -656,6 +656,38 @@ def parse_expansion_var(ctx: ParseContext) -> ASTNode:
     return parse_strtok(ctx).wrap(ASTNodeType.EXPANSION_VAR, as_child=True)
 
 
+def parse_expansion_call_args(ctx: ParseContext) -> ASTNode:
+    logger.debug("parse_expansion_call_args")
+
+    args = parse_greedy(parse_eventual_string)(ctx)
+    first_tok: t.Optional[Token] = None
+
+    if args:
+        first_tok = args[0].tok
+
+    args_node = ASTNode(
+        ASTNodeType.EXPANSION_ARGUMENTS,
+        first_tok
+    )
+    args_node.children.extend(args)
+
+    return args_node
+
+
+def parse_expansion_call(ctx: ParseContext) -> ASTNode:
+    logger.debug("parse_expansion_call")
+    call_node = expect(TokenType.OPEN_PAREN)(ctx).wrap(
+        ASTNodeType.EXPANSION_CALL
+    )
+
+    call_node.children.append(parse_eventual_string(ctx))  # Expansion name
+    call_node.children.append(parse_expansion_call_args(ctx))
+
+    expect(TokenType.CLOSE_PAREN, fatal_on_error=True)(ctx)
+
+    return call_node
+
+
 def parse_expansion(ctx: ParseContext) -> ASTNode:
     logger.debug("parse_expansion")
 
@@ -673,7 +705,9 @@ def parse_expansion(ctx: ParseContext) -> ASTNode:
             ASTNode(ASTNodeType.EXPANSION_MULTI, multi_tok)
         )
 
-    expansion_node.children.append(parse_expansion_var(ctx))
+    expansion_node.children.append(
+        parse_choice(parse_expansion_call, parse_expansion_var)(ctx)
+    )
 
     return expansion_node
 

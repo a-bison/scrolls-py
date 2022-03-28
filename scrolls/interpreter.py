@@ -1,4 +1,5 @@
 import logging
+import random
 import types
 import typing as t
 
@@ -209,6 +210,7 @@ class CallbackCallHandler(t.Generic[T_co]):
 
 CallbackCommandHandler = CallbackCallHandler[None]
 CallbackControlHandler = CallbackCallHandler[None]
+CallbackExpansionHandler = CallbackCallHandler[str]
 
 
 class DebugCommandHandler(CallbackCommandHandler):
@@ -222,7 +224,6 @@ class DebugCommandHandler(CallbackCommandHandler):
 
     def printcommand(self, context: InterpreterContext) -> None:
         print(" ".join(context.args))
-
 
 
 class StandardCommandHandler(CallbackCommandHandler):
@@ -315,6 +316,21 @@ class StandardControlHandler(CallbackControlHandler):
             interpreter.interpret_statement(context, control_node)
 
         context.del_var(var_name)
+
+
+class StandardExpansionHandler(CallbackExpansionHandler):
+    """
+    Implements standard expansions.
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self.add_call("select", self.select)
+
+    def select(self, context: InterpreterContext) -> str:
+        """
+        Randomly selects one of the arguments and returns it.
+        """
+        return random.choice(context.args)
 
 
 class CallHandlerContainer(t.Generic[T]):
@@ -426,11 +442,13 @@ class Interpreter:
     ):
         self._command_handlers: CallHandlerContainer[None] = CallHandlerContainer()
         self._control_handlers: CallHandlerContainer[None] = CallHandlerContainer()
+        self._expansion_handlers: CallHandlerContainer[str] = CallHandlerContainer()
         self.context_cls = context_cls
 
         self.statement_limit = statement_limit
         self._control_handlers.add(StandardControlHandler())
         self._command_handlers.add(StandardCommandHandler())
+        self._expansion_handlers.add(StandardExpansionHandler())
 
     def over_statement_limit(self, context: InterpreterContext) -> bool:
         if self.statement_limit == 0:
@@ -445,6 +463,10 @@ class Interpreter:
     @property
     def control_handlers(self) -> CallHandlerContainer[None]:
         return self._control_handlers
+
+    @property
+    def expansion_handlers(self) -> CallHandlerContainer[str]:
+        return self._expansion_handlers
 
     def run(
         self,
@@ -530,42 +552,68 @@ class Interpreter:
         handler.handle_call(context)
         context.reset_call()
 
-    def interpret_command(self, context: InterpreterContext, node: ast.ASTNode) -> None:
+    def interpret_call(
+        self,
+        call_handler_container: CallHandlerContainer[T_co],
+        context: InterpreterContext,
+        node: ast.ASTNode,
+        expected_node_type: ast.ASTNodeType
+    ) -> T_co:
+        """
+        Generic function for interpreting call nodes.
+        """
+
+        if node.type != expected_node_type:
+            raise InternalInterpreterError(
+                context,
+                f"interpret_call: name: Expected {expected_node_type.name}, got {node.type.name}"
+            )
+
         name_node, args_node = tuple(node.children)
         arg_node_map: ArgSourceMap[ast.ASTNode] = ArgSourceMap()
 
-        raw_cmd = list(self.interpret_string_or_expansion(context, name_node))
+        raw_call = list(self.interpret_string_or_expansion(context, name_node))
 
-        if not raw_cmd:
+        if not raw_call:
             raise InterpreterError(
                 context,
-                f"Command must not expand to empty string."
+                f"Call name must not expand to empty string."
             )
 
-        arg_node_map.add_args(raw_cmd[1:], name_node)
+        arg_node_map.add_args(raw_call[1:], name_node)
 
         for arg_node in args_node.children:
             new_args = self.interpret_string_or_expansion(context, arg_node)
             arg_node_map.add_args(new_args, arg_node)
 
-            raw_cmd += new_args
+            raw_call += new_args
 
-        logger.debug(f"interpret_command: raw {raw_cmd}")
-        command_name = raw_cmd[0]
-        command_args: t.Sequence[str] = raw_cmd[1:]
+        logger.debug(f"interpret_call: raw {raw_call}")
+        call_name = raw_call[0]
+        call_args: t.Sequence[str] = raw_call[1:]
 
         context.current_node = node
 
-        context.set_call(command_name, command_args, arg_node_map)
+        context.set_call(call_name, call_args, arg_node_map)
 
         try:
-            handler = self.command_handlers.get_for_call(command_name)
+            handler = call_handler_container.get_for_call(call_name)
         except KeyError:
             context.current_node = name_node
-            raise MissingCommandError(context, command_name)
+            raise MissingCommandError(context, call_name)
 
-        handler.handle_call(context)
+        result: T_co = handler.handle_call(context)
         context.reset_call()
+
+        return result
+
+    def interpret_command(self, context: InterpreterContext, node: ast.ASTNode) -> None:
+        self.interpret_call(
+            self.command_handlers,
+            context,
+            node,
+            ast.ASTNodeType.COMMAND_CALL
+        )
 
     @staticmethod
     def interpret_variable_reference(context: InterpreterContext, node: ast.ASTNode) -> str:
@@ -579,12 +627,22 @@ class Interpreter:
                 context, f"No such variable {var_name}."
             )
 
+    def interpret_expansion_call(self, context: InterpreterContext, node: ast.ASTNode) -> str:
+        return self.interpret_call(
+            self.expansion_handlers,
+            context,
+            node,
+            ast.ASTNodeType.EXPANSION_CALL
+        )
+
     def interpret_sub_expansion(self, context: InterpreterContext, node: ast.ASTNode) -> str:
         """Get the raw string for an expansion."""
         context.current_node = node
 
         if node.type == ast.ASTNodeType.EXPANSION_VAR:
             return self.interpret_variable_reference(context, node.children[0])
+        elif node.type == ast.ASTNodeType.EXPANSION_CALL:
+            return self.interpret_expansion_call(context, node)
         else:
             raise InternalInterpreterError(
                 context,
