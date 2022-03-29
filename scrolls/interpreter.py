@@ -276,27 +276,9 @@ class MissingCallError(InterpreterError):
     """
     def __init__(self, ctx: InterpreterContext, call_type: str, call_name: str):
         self.call = call_name
-        message = f"{call_type.capitalize()} call {call_name} not found."
+        message = f"{call_type.capitalize()} '{call_name}' not found."
         super().__init__(
             ctx, message
-        )
-
-
-class MissingCommandError(MissingCallError):
-    def __init__(self, ctx: InterpreterContext, command_name: str):
-        super().__init__(
-            ctx,
-            "command",
-            command_name
-        )
-
-
-class MissingControlError(MissingCallError):
-    def __init__(self, ctx: InterpreterContext, control_name: str):
-        super().__init__(
-            ctx,
-            "control",
-            control_name
         )
 
 
@@ -402,36 +384,13 @@ class Interpreter:
     def interpret_root(self, context: InterpreterContext, node: ast.ASTNode) -> None:
         self.interpret_block(context, node)
 
-    def interpret_control(self, context: InterpreterContext, node: ast.ASTNode) -> None:
-        context.current_node = node
-        arg_node_map: ArgSourceMap[ast.ASTNode] = ArgSourceMap()
-
-        name_node, args_node, control_node = tuple(node.children)
-        control_name = name_node.str_content()
-        control_args: t.MutableSequence[str] = []
-
-        for arg_node in args_node.children:
-            arg = arg_node.str_content()
-            control_args.append(arg)
-            arg_node_map.add_args([arg], arg_node)
-
-        context.set_call(control_name, control_args, arg_node_map, control_node=control_node)
-
-        try:
-            handler = self.control_handlers.get_for_call(control_name)
-        except KeyError:
-            context.current_node = name_node
-            raise MissingControlError(context, control_name)
-
-        handler.handle_call(context)
-        context.reset_call()
-
     def interpret_call(
         self,
         call_handler_container: CallHandlerContainer[T_co],
         context: InterpreterContext,
         node: ast.ASTNode,
-        expected_node_type: ast.ASTNodeType
+        expected_node_type: ast.ASTNodeType,
+        pass_control_node: bool = False
     ) -> T_co:
         """
         Generic function for interpreting call nodes.
@@ -443,7 +402,8 @@ class Interpreter:
                 f"interpret_call: name: Expected {expected_node_type.name}, got {node.type.name}"
             )
 
-        name_node, args_node = tuple(node.children)
+        name_node = node.children[0]
+        args_node = node.children[1]
         arg_node_map: ArgSourceMap[ast.ASTNode] = ArgSourceMap()
 
         raw_call = list(self.interpret_string_or_expansion(context, name_node))
@@ -467,19 +427,34 @@ class Interpreter:
         call_args: t.Sequence[str] = raw_call[1:]
 
         context.current_node = node
+        control_node: t.Optional[ast.ASTNode]
 
-        context.set_call(call_name, call_args, arg_node_map)
+        if pass_control_node:
+            control_node = node.children[2]
+        else:
+            control_node = None
+
+        context.set_call(call_name, call_args, arg_node_map, control_node=control_node)
 
         try:
             handler = call_handler_container.get_for_call(call_name)
         except KeyError:
             context.current_node = name_node
-            raise MissingCommandError(context, call_name)
+            raise MissingCallError(context, expected_node_type.name, call_name)
 
         result: T_co = handler.handle_call(context)
         context.reset_call()
 
         return result
+
+    def interpret_control(self, context: InterpreterContext, node: ast.ASTNode) -> None:
+        self.interpret_call(
+            self.control_handlers,
+            context,
+            node,
+            ast.ASTNodeType.CONTROL_CALL,
+            pass_control_node=True
+        )
 
     def interpret_command(self, context: InterpreterContext, node: ast.ASTNode) -> None:
         self.interpret_call(

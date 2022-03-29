@@ -746,7 +746,7 @@ def parse_control_args(ctx: ParseContext) -> ASTNode:
     args_node = expect(TokenType.OPEN_PAREN)(ctx).wrap(
         ASTNodeType.CONTROL_ARGUMENTS
     )
-    args_node.children.extend(parse_greedy(parse_strtok)(ctx))
+    args_node.children.extend(parse_greedy(parse_eventual_string)(ctx))
     expect(
         TokenType.CLOSE_PAREN,
         fatal_on_error=True
