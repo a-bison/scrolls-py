@@ -39,6 +39,9 @@ def main() -> None:
     interpreter.command_handlers.add(scrolls.BuiltinCommandHandler())
     interpreter.command_handlers.add(scrolls.StdIoCommandHandler())
     interpreter.expansion_handlers.add(scrolls.RandomExpansionHandler())
+    interpreter.expansion_handlers.add(scrolls.ArithmeticExpansionHandler())
+    interpreter.expansion_handlers.add(scrolls.ComparisonExpansionHandler())
+    interpreter.expansion_handlers.add(scrolls.LogicExpansionHandler())
 
     with open(file, 'r') as f:
         script = f.read()

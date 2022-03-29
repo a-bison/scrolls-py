@@ -1,4 +1,6 @@
 import random
+import typing as t
+from functools import reduce
 
 from . import interpreter
 
@@ -6,8 +8,31 @@ __all__ = (
     "StdIoCommandHandler",
     "BuiltinControlHandler",
     "BuiltinCommandHandler",
-    "RandomExpansionHandler"
+    "RandomExpansionHandler",
+    "ArithmeticExpansionHandler",
+    "ComparisonExpansionHandler",
+    "LogicExpansionHandler",
+    "TRUE",
+    "FALSE",
+    "true",
+    "false"
 )
+
+
+TRUE = "1"
+FALSE = "0"
+
+
+def false(x: str) -> bool:
+    return x == FALSE
+
+
+def true(x: str) -> bool:
+    return not false(x)
+
+
+def to_scrolls_bool(b: bool) -> str:
+    return TRUE if b else FALSE
 
 
 class StdIoCommandHandler(interpreter.CallbackCommandHandler):
@@ -75,6 +100,7 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
         super().__init__()
         self.add_call("repeat", self.repeat)
         self.add_call("for", self._for)
+        self.add_call("if", self._if)
 
     def repeat(self, context: interpreter.InterpreterContext) -> None:
         if len(context.args) != 1:
@@ -119,6 +145,16 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
             context.interpreter.interpret_statement(context, control_node)
 
         context.del_var(var_name)
+
+    def _if(self, context: interpreter.InterpreterContext) -> None:
+        if len(context.args) != 1:
+            raise interpreter.InterpreterError(
+                context,
+                f"if: needs one and only one argument"
+            )
+
+        if true(context.args[0]):
+            context.interpreter.interpret_statement(context, context.control_node)
 
 
 class RandomExpansionHandler(interpreter.CallbackExpansionHandler):
@@ -165,3 +201,120 @@ class RandomExpansionHandler(interpreter.CallbackExpansionHandler):
             )
 
         return str(random.uniform(lower, upper))
+
+
+class ArithmeticExpansionHandler(interpreter.CallbackExpansionHandler):
+    """
+    Implements basic arithmetic expansions. These aren't very efficient, but
+    if you want efficiency, you shouldn't be using an interpreted language
+    with no JIT being interpreted by another interpreted language. :)
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self.add_call("+", self.add)
+        self.add_call("-", self.sub)
+        self.add_call("*", self.mul)
+        self.add_call("/", self.div)
+        self.add_call("%", self.mod)
+
+    @staticmethod
+    def force_float(context: interpreter.InterpreterContext, x: str) -> float:
+        try:
+            return float(x)
+        except ValueError as e:
+            raise interpreter.InterpreterError(
+                context,
+                f"bad float value {x}"
+            )
+
+    @staticmethod
+    def force_all_float(context: interpreter.InterpreterContext) -> t.Sequence[float]:
+        if not context.args:
+            raise interpreter.InterpreterError(
+                context,
+                f"arithmetic expansion must take at least one argument"
+            )
+
+        return [
+            ArithmeticExpansionHandler.force_float(context, x) for x in context.args
+        ]
+
+    @staticmethod
+    def product(l: t.Sequence[float]) -> float:
+        return reduce(lambda x, y: x * y, l, 1.0)
+
+    def add(self, context: interpreter.InterpreterContext) -> str:
+        return str(sum(self.force_all_float(context)))
+
+    def sub(self, context: interpreter.InterpreterContext) -> str:
+        args = self.force_all_float(context)
+
+        if len(args) == 1:
+            return str(-args[0])
+
+        return str(args[0] - sum(args[1:]))
+
+    def mul(self, context: interpreter.InterpreterContext) -> str:
+        return str(self.product(self.force_all_float(context)))
+
+    def div(self, context: interpreter.InterpreterContext) -> str:
+        args = self.force_all_float(context)
+        return str(args[0] / self.product(args[1:]))
+
+    def mod(self, context: interpreter.InterpreterContext) -> str:
+        args = self.force_all_float(context)
+        if len(args) != 2:
+            raise interpreter.InterpreterError(
+                context,
+                f"mod: must have exactly 2 args"
+            )
+
+        return str(int(args[0]) % int(args[1]))
+
+
+class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
+    """
+    Implements basic comparison operators.
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self.add_call("eq?", self.equals)
+        self.add_call("neq?", self.not_equals)
+
+    def equals_bool(self, context: interpreter.InterpreterContext) -> bool:
+        args = context.args
+        if len(args) != 2:
+            raise interpreter.InterpreterError(
+                context,
+                f"=: must have exactly 2 args"
+            )
+
+        try:
+            float_args = ArithmeticExpansionHandler.force_all_float(context)
+            return float_args[0] == float_args[1]
+        except interpreter.InterpreterError:
+            return args[0] == args[1]
+
+    def equals(self, context: interpreter.InterpreterContext) -> str:
+        return to_scrolls_bool(self.equals_bool(context))
+
+    def not_equals(self, context: interpreter.InterpreterContext) -> str:
+        return to_scrolls_bool(not self.equals_bool(context))
+
+
+class LogicExpansionHandler(interpreter.CallbackExpansionHandler):
+    """
+    Implements basic logic operators.
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self.add_call("not", self._not)
+
+    def _not(self, context: interpreter.InterpreterContext) -> str:
+        if len(context.args) != 1:
+            raise interpreter.InterpreterError(
+                context,
+                f"not: need one and only one argument"
+            )
+
+        return to_scrolls_bool(not true(context.args[0]))

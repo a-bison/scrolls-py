@@ -1,0 +1,3 @@
+print Enter a temperature in Fahrenheit:
+input temp
+print $temp F is $(/ $(- $temp 32) 1.8) C.

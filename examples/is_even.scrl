@@ -1,0 +1,12 @@
+print Enter a number:
+input n
+
+set even $(eq? $(% $n 2) 0)
+
+!if($even) {
+    print $n is even.
+}
+
+!if($(not $even)) {
+    print $n is odd.
+}
