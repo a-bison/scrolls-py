@@ -128,9 +128,40 @@ class RandomExpansionHandler(interpreter.CallbackExpansionHandler):
     def __init__(self) -> None:
         super().__init__()
         self.add_call("select", self.select)
+        self.add_call("shuffle", self.shuffle)
+        self.add_call("uniform", self.uniform)
 
     def select(self, context: interpreter.InterpreterContext) -> str:
         """
         Randomly selects one of the arguments and returns it.
         """
         return random.choice(context.args)
+
+    def shuffle(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Shuffle the arguments given and return them.
+        """
+        args = list(context.args)
+        random.shuffle(args)
+        return " ".join(args)
+
+    def uniform(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Returns a random floating point number between two bounds, inclusive.
+        """
+        if len(context.args) != 2:
+            raise interpreter.InterpreterError(
+                context,
+                f"uniform: must have two args. (got {', '.join(context.args)})"
+            )
+
+        try:
+            lower = float(context.args[0])
+            upper = float(context.args[1])
+        except ValueError as e:
+            raise interpreter.InterpreterError(
+                context,
+                f"uniform: {str(e)}"
+            )
+
+        return str(random.uniform(lower, upper))
