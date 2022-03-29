@@ -12,6 +12,7 @@ __all__ = (
     "ArithmeticExpansionHandler",
     "ComparisonExpansionHandler",
     "LogicExpansionHandler",
+    "StringExpansionHandler",
     "TRUE",
     "FALSE",
     "true",
@@ -318,3 +319,16 @@ class LogicExpansionHandler(interpreter.CallbackExpansionHandler):
             )
 
         return to_scrolls_bool(not true(context.args[0]))
+
+
+class StringExpansionHandler(interpreter.CallbackExpansionHandler):
+    """
+    Implements basic string manipulation functions.
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self.add_call("cat", self.concat)
+        self.add_alias("concat", "cat")
+
+    def concat(self, context: interpreter.InterpreterContext) -> str:
+        return "".join(context.args)

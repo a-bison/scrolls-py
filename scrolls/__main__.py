@@ -42,6 +42,7 @@ def main() -> None:
     interpreter.expansion_handlers.add(scrolls.ArithmeticExpansionHandler())
     interpreter.expansion_handlers.add(scrolls.ComparisonExpansionHandler())
     interpreter.expansion_handlers.add(scrolls.LogicExpansionHandler())
+    interpreter.expansion_handlers.add(scrolls.StringExpansionHandler())
 
     with open(file, 'r') as f:
         script = f.read()
