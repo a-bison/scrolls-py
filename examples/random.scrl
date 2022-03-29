@@ -1,0 +1,16 @@
+print Demonstrating select...
+!repeat(10) {
+    print $(select a b c d)
+}
+print
+
+print Demonstrating uniform...
+!repeat(10) {
+    print $(uniform 0 10)
+}
+print
+
+print Demonstrating shuffle...
+!repeat(10) {
+    print $^(shuffle a b c d)
+}
