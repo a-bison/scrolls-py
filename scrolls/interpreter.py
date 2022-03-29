@@ -326,7 +326,7 @@ class Interpreter:
 
     def over_statement_limit(self, context: InterpreterContext) -> bool:
         if self.statement_limit == 0:
-            return True
+            return False
         else:
             return context.statement_count > self.statement_limit
 
