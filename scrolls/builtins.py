@@ -312,6 +312,7 @@ class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
         self.add_call("<", self.lt)
         self.add_call(">=", self.gte)
         self.add_call("<=", self.lte)
+        self.add_call("in?", self._in)
 
     def equals_bool(self, context: interpreter.InterpreterContext) -> bool:
         args = context.args
@@ -360,6 +361,15 @@ class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
     def lte(self, context: interpreter.InterpreterContext) -> str:
         a, b = self.get_numeric_compare_args(context)
         return bool_to_scrolls_bool(a <= b)
+
+    def _in(self, context: interpreter.InterpreterContext) -> str:
+        if len(context.args) == 0:
+            raise interpreter.InterpreterError(
+                context,
+                f"{context.call_name} requires at least one argument"
+            )
+
+        return bool_to_scrolls_bool(context.args[0] in context.args[1:])
 
 
 class LogicExpansionHandler(interpreter.CallbackExpansionHandler):
