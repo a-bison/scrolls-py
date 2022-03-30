@@ -118,6 +118,10 @@ class InterpreterContext:
             )
 
     @property
+    def call_stack(self) -> t.Sequence:
+        return self._call_stack
+
+    @property
     def call_context(self) -> CallContext:
         self._call_check()
         return t.cast(CallContext, self._call_context)
@@ -159,6 +163,9 @@ class InterpreterContext:
             arg_nodes,
             control_node
         )
+
+    def in_call(self) -> bool:
+        return self._call_context is not None
 
     def reset_call(self) -> None:
         self._call_context = None
@@ -473,6 +480,9 @@ class Interpreter:
         else:
             control_node = None
 
+        if context.in_call():
+            context.push_call()
+
         context.set_call(call_name, call_args, arg_node_map, control_node=control_node)
 
         try:
@@ -482,7 +492,11 @@ class Interpreter:
             raise MissingCallError(context, expected_node_type.name, call_name)
 
         result: T_co = handler.handle_call(context)
-        context.reset_call()
+
+        if context.call_stack:
+            context.pop_call()
+        else:
+            context.reset_call()
 
         return result
 

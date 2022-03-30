@@ -172,16 +172,12 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
         arg = context.args[0]
 
         while true(arg):
-            context.push_call()
             context.interpreter.interpret_statement(context, context.control_node)
-            context.pop_call()
 
             # HACK:
             # In order for while to work right, we need to re-evaluate the argument
             # every time.
-            context.push_call()
             arg = context.interpreter.interpret_string_or_expansion(context, context.arg_nodes[0])[0]
-            context.pop_call()
 
 
 class RandomExpansionHandler(interpreter.CallbackExpansionHandler):
