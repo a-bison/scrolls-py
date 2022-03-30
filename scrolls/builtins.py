@@ -67,6 +67,7 @@ class BuiltinCommandHandler(interpreter.CallbackCommandHandler):
         super().__init__()
         self.add_call("set", self.set)
         self.add_call("unset", self.unset)
+        self.add_call("stop", self.stop)
 
     def set(self, context: interpreter.InterpreterContext) -> None:
         if not context.args:
@@ -92,6 +93,9 @@ class BuiltinCommandHandler(interpreter.CallbackCommandHandler):
                 f"unset: no such variable {context.args[0]}"
             )
 
+    def stop(self, context: interpreter.InterpreterContext) -> None:
+        raise interpreter.InterpreterStop
+
 
 class BuiltinControlHandler(interpreter.CallbackControlHandler):
     """
@@ -102,6 +106,7 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
         self.add_call("repeat", self.repeat)
         self.add_call("for", self._for)
         self.add_call("if", self._if)
+        self.add_call("while", self._while)
 
     def repeat(self, context: interpreter.InterpreterContext) -> None:
         if len(context.args) != 1:
@@ -156,6 +161,27 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
 
         if true(context.args[0]):
             context.interpreter.interpret_statement(context, context.control_node)
+
+    def _while(self, context: interpreter.InterpreterContext) -> None:
+        if len(context.args) != 1:
+            raise interpreter.InterpreterError(
+                context,
+                f"while: needs one and only one argument"
+            )
+
+        arg = context.args[0]
+
+        while true(arg):
+            context.push_call()
+            context.interpreter.interpret_statement(context, context.control_node)
+            context.pop_call()
+
+            # HACK:
+            # In order for while to work right, we need to re-evaluate the argument
+            # every time.
+            context.push_call()
+            arg = context.interpreter.interpret_string_or_expansion(context, context.arg_nodes[0])[0]
+            context.pop_call()
 
 
 class RandomExpansionHandler(interpreter.CallbackExpansionHandler):
@@ -280,14 +306,19 @@ class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
     def __init__(self) -> None:
         super().__init__()
         self.add_call("eq?", self.equals)
+        self.add_alias("==", "eq?")
         self.add_call("neq?", self.not_equals)
+        self.add_call(">", self.gt)
+        self.add_call("<", self.lt)
+        self.add_call(">=", self.gte)
+        self.add_call("<=", self.lte)
 
     def equals_bool(self, context: interpreter.InterpreterContext) -> bool:
         args = context.args
         if len(args) != 2:
             raise interpreter.InterpreterError(
                 context,
-                f"=: must have exactly 2 args"
+                f"{context.call_name}: must have exactly 2 args"
             )
 
         try:
@@ -296,11 +327,39 @@ class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
         except interpreter.InterpreterError:
             return args[0] == args[1]
 
+    def get_numeric_compare_args(self, context: interpreter.InterpreterContext) -> t.Tuple[float, float]:
+        args = context.args
+        if len(args) != 2:
+            raise interpreter.InterpreterError(
+                context,
+                f"{context.call_name}: must have exactly 2 args"
+            )
+
+        a, b = ArithmeticExpansionHandler.force_all_float(context)
+
+        return a, b
+
     def equals(self, context: interpreter.InterpreterContext) -> str:
         return to_scrolls_bool(self.equals_bool(context))
 
     def not_equals(self, context: interpreter.InterpreterContext) -> str:
         return to_scrolls_bool(not self.equals_bool(context))
+
+    def gt(self, context: interpreter.InterpreterContext) -> str:
+        a, b = self.get_numeric_compare_args(context)
+        return to_scrolls_bool(a > b)
+
+    def lt(self, context: interpreter.InterpreterContext) -> str:
+        a, b = self.get_numeric_compare_args(context)
+        return to_scrolls_bool(a < b)
+
+    def gte(self, context: interpreter.InterpreterContext) -> str:
+        a, b = self.get_numeric_compare_args(context)
+        return to_scrolls_bool(a >= b)
+
+    def lte(self, context: interpreter.InterpreterContext) -> str:
+        a, b = self.get_numeric_compare_args(context)
+        return to_scrolls_bool(a <= b)
 
 
 class LogicExpansionHandler(interpreter.CallbackExpansionHandler):

@@ -1,3 +1,4 @@
+import dataclasses
 import logging
 import types
 import typing as t
@@ -14,7 +15,8 @@ __all__ = (
     "InternalInterpreterError",
     "ScrollCallback",
     "CallHandlerContainer",
-    "CallbackCallHandler"
+    "CallbackCallHandler",
+    "InterpreterStop"
 )
 
 logger = logging.getLogger(__name__)
@@ -39,20 +41,27 @@ class ArgSourceMap(dict[int, T], t.Generic[T]):
         self.count += len(args)
 
 
+@dataclasses.dataclass
+class CallContext:
+    call_name: str
+    args: t.Sequence[str]
+    arg_nodes: ArgSourceMap[ast.ASTNode]
+    control_node: t.Optional[ast.ASTNode] = None
+
+
 class InterpreterContext:
     """
     Base class for the command interpreter context.
     """
     def __init__(self, *_: t.Any):
         self._current_node: t.Optional[ast.ASTNode] = None
-        self._call_name: t.Optional[str] = None
-        self._args: t.Sequence[str] = []
-        self._arg_nodes: ArgSourceMap[ast.ASTNode] = ArgSourceMap()
+        self._call_context: t.Optional[CallContext] = None
         self._interpreter: t.Optional[Interpreter] = None
-        self._control_node: t.Optional[ast.ASTNode] = None
         self._vars: t.MutableMapping[str, str] = {}
         self._script: t.Optional[str] = None
         self.statement_count = 0
+
+        self._call_stack: t.MutableSequence[CallContext] = []
 
     def set_var(self, name: str, value: str) -> None:
         self._vars[name] = value
@@ -103,34 +112,39 @@ class InterpreterContext:
         self._current_node = node
 
     def _call_check(self) -> None:
-        if self._call_name is None:
+        if self._call_context is None:
             raise InternalInterpreterError(
                 self, "Current context is not a call."
             )
 
     @property
+    def call_context(self) -> CallContext:
+        self._call_check()
+        return t.cast(CallContext, self._call_context)
+
+    @property
     def call_name(self) -> str:
         self._call_check()
-        return t.cast(str, self._call_name)
+        return self.call_context.call_name
 
     @property
     def args(self) -> t.Sequence[str]:
         self._call_check()
-        return self._args
+        return self.call_context.args
 
     @property
     def arg_nodes(self) -> ArgSourceMap[ast.ASTNode]:
         self._call_check()
-        return self._arg_nodes
+        return self.call_context.arg_nodes
 
     @property
     def control_node(self) -> ast.ASTNode:
-        if self._control_node is None:
+        if self.call_context.control_node is None:
             raise InternalInterpreterError(
                 self, "Current context is not a control call."
             )
 
-        return self._control_node
+        return self.call_context.control_node
 
     def set_call(
         self,
@@ -139,16 +153,29 @@ class InterpreterContext:
         arg_nodes: ArgSourceMap[ast.ASTNode],
         control_node: t.Optional[ast.ASTNode] = None
     ) -> None:
-        self._call_name = command
-        self._args = args
-        self._arg_nodes = arg_nodes
-        self._control_node = control_node
+        self._call_context = CallContext(
+            command,
+            args,
+            arg_nodes,
+            control_node
+        )
 
     def reset_call(self) -> None:
-        self._call_name = None
-        self._args = []
-        self._arg_nodes = ArgSourceMap()
-        self._control_node = None
+        self._call_context = None
+
+    def push_call(self) -> None:
+        self._call_check()
+        self._call_stack.append(self.call_context)
+
+    def pop_call(self) -> None:
+        if not self._call_stack:
+            raise InternalInterpreterError(
+                self,
+                f"Cannot pop call. No calls pushed."
+            )
+
+        ctx = self._call_stack.pop()
+        self._call_context = ctx
 
 
 class CallHandler(t.Protocol[T_co]):
@@ -290,6 +317,14 @@ class InternalInterpreterError(InterpreterError):
         )
 
 
+class InterpreterStop(errors.ScrollError):
+    """
+    An exception raised to stop the interpreter.
+    """
+    def __init__(self):
+        super().__init__("InterpreterStop")
+
+
 class Interpreter:
     """
     The interpreter implementation for Scrolls.
@@ -377,7 +412,11 @@ class Interpreter:
 
         context.interpreter = self
         context.script = tree.script
-        self.interpret_root(context, tree.root)
+        try:
+            self.interpret_root(context, tree.root)
+        except InterpreterStop:
+            logger.debug("Interpreter stop raised.")
+            pass
 
         return context
 
