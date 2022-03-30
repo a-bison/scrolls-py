@@ -1,5 +1,0 @@
-print Enter a temperature in Fahrenheit:
-input temp_f
-set temp_c $(/ $(- $temp_f 32) 1.8)
-
-print $(cat $temp_f F) in Celsius is $(cat $temp_c C)
