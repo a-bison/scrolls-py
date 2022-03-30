@@ -328,7 +328,7 @@ class InterpreterStop(errors.ScrollError):
     """
     An exception raised to stop the interpreter.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("InterpreterStop")
 
 
