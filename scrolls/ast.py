@@ -172,6 +172,17 @@ class ASTNode:
         assert self._tok is not None
         return self._tok.value
 
+    def find_all(self, func: t.Callable[['ASTNode'], bool]) -> t.Sequence['ASTNode']:
+        found = []
+
+        if func(self):
+            found.append(self)
+
+        for child in self.children:
+            found.extend(child.find_all(func))
+
+        return found
+
     def __str__(self) -> str:
         return repr(self)
 

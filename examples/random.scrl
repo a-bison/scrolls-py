@@ -1,16 +1,13 @@
-print Demonstrating select...
-!repeat(10) {
-    print $(select a b c d)
+!def(demo name params) {
+    print Demonstrating $(cat $name ...)
+    !repeat(10) {
+        print $($name $^params)
+    }
+    print
 }
-print
 
-print Demonstrating uniform...
-!repeat(10) {
-    print $(uniform 0 10)
-}
-print
-
-print Demonstrating shuffle...
-!repeat(10) {
-    print $^(shuffle a b c d)
-}
+set params a b c d
+demo select $params
+demo shuffle $params
+set params 0 10
+demo uniform $params

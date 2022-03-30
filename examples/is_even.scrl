@@ -1,12 +1,11 @@
 print Enter a number:
 input n
 
-set even $(eq? $(% $n 2) 0)
+!def(even? x) return $(eq? $(% $x 2) 0)
 
-!if($even) {
+!if($(even? $n)) {
     print $n is even.
+    stop
 }
 
-!if($(not $even)) {
-    print $n is odd.
-}
+print $n is odd.

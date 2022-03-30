@@ -16,6 +16,9 @@ __all__ = (
     "InternalInterpreterError",
     "ScrollCallback",
     "CallHandlerContainer",
+    "MutableCallHandlerContainer",
+    "BaseCallHandlerContainer",
+    "RuntimeCallHandler",
     "CallbackCallHandler",
     "InterpreterStop"
 )
@@ -48,6 +51,44 @@ class CallContext:
     args: t.Sequence[str]
     arg_nodes: ArgSourceMap[ast.ASTNode]
     control_node: t.Optional[ast.ASTNode] = None
+    return_value: t.Optional[t.Any] = None
+    runtime_call: bool = False
+
+
+class ScopedVarStore:
+    def __init__(self) -> None:
+        self.scopes: t.MutableSequence[t.MutableMapping[str, str]] = []
+        self.new_scope()  # There should always be one scope.
+
+    def new_scope(self) -> None:
+        self.scopes.append({})
+
+    def destroy_scope(self) -> None:
+        if len(self.scopes) == 1:
+            # there should always be at least one scope
+            raise ValueError("There must be at least one scope.")
+
+        self.scopes.pop()
+
+    def get_scope_for(self, name: str) -> t.MutableMapping[str, str]:
+        for scope in reversed(self.scopes):
+            if name in scope:
+                return scope
+
+        raise KeyError('name')
+
+    @property
+    def current_scope(self) -> t.MutableMapping[str, str]:
+        return self.scopes[-1]
+
+    def get_var(self, name: str) -> str:
+        return self.get_scope_for(name)[name]
+
+    def set_var(self, name: str, value: str) -> None:
+        self.current_scope[name] = value
+
+    def del_var(self, name: str) -> None:
+        del self.current_scope[name]
 
 
 class InterpreterContext:
@@ -58,20 +99,34 @@ class InterpreterContext:
         self._current_node: t.Optional[ast.ASTNode] = None
         self._call_context: t.Optional[CallContext] = None
         self._interpreter: t.Optional[Interpreter] = None
-        self._vars: t.MutableMapping[str, str] = {}
+        self._vars = ScopedVarStore()
         self._script: t.Optional[str] = None
         self.statement_count = 0
 
         self._call_stack: t.MutableSequence[CallContext] = []
+        self._command_handlers: BaseCallHandlerContainer[None] = BaseCallHandlerContainer()
+        self._expansion_handlers: BaseCallHandlerContainer[str] = BaseCallHandlerContainer()
+
+    @property
+    def vars(self) -> ScopedVarStore:
+        return self._vars
 
     def set_var(self, name: str, value: str) -> None:
-        self._vars[name] = value
+        self.vars.set_var(name, value)
 
     def del_var(self, name: str) -> None:
-        del self._vars[name]
+        self.vars.del_var(name)
 
     def get_var(self, name: str) -> str:
-        return self._vars[name]
+        return self.vars.get_var(name)
+
+    @property
+    def runtime_commands(self) -> 'BaseCallHandlerContainer[None]':
+        return self._command_handlers
+
+    @property
+    def runtime_expansions(self) -> 'BaseCallHandlerContainer[str]':
+        return self._expansion_handlers
 
     @property
     def script(self) -> str:
@@ -119,7 +174,7 @@ class InterpreterContext:
             )
 
     @property
-    def call_stack(self) -> t.Sequence:
+    def call_stack(self) -> t.Sequence[CallContext]:
         return self._call_stack
 
     @property
@@ -185,6 +240,28 @@ class InterpreterContext:
         ctx = self._call_stack.pop()
         self._call_context = ctx
 
+    # In order to set a return value, we need to traverse up the
+    # context stack in order to find one actually created by a dynamically
+    # generated call.
+    def set_retval(self, retval: str) -> None:
+        self._call_check()
+
+        if not self.call_stack:
+            raise InterpreterError(
+                self,
+                f"cannot return, no call stack (outside calls)"
+            )
+
+        for ctx in reversed(self.call_stack):
+            if ctx.runtime_call:
+                ctx.return_value = retval
+                return
+
+        raise InterpreterError(
+            self,
+            f"cannot return outside of function"
+        )
+
 
 class CallHandler(t.Protocol[T_co]):
     """
@@ -207,6 +284,47 @@ class Initializer(abc.ABC):
 
     def __contains__(self, command_name: str) -> bool:
         return False
+
+
+class RuntimeCallHandler(t.Generic[T_co]):
+    """
+    A basic call handler that maps names to AST nodes.
+    """
+    def __init__(self) -> None:
+        self.calls: t.MutableMapping[str, tuple[ast.ASTNode, t.Sequence[str]]] = {}
+
+    def define(self, name: str, node: ast.ASTNode, params: t.Sequence[str]) -> None:
+        self.calls[name] = (node, params)
+
+    def undefine(self, name: str) -> None:
+        del self.calls[name]
+
+    def handle_call(self, context: InterpreterContext) -> T_co:
+        node, params = self.calls[context.call_name]
+
+        if len(params) != len(context.args):
+            raise InterpreterError(
+                context,
+                f"{context.call_name}: Invalid number of arguments (expected {len(params)})"
+            )
+
+        context.vars.new_scope()
+        for param, arg in zip(params, context.args):
+            context.set_var(param, arg)
+
+        context.call_context.runtime_call = True
+        try:
+            context.interpreter.interpret_statement(context, node)
+        except InterpreterReturn:
+            pass
+
+        context.vars.destroy_scope()
+
+        # TODO Fix typing here
+        return t.cast(T_co, context.call_context.return_value)
+
+    def __contains__(self, command_name: str) -> bool:
+        return command_name in self.calls
 
 
 class CallbackCallHandler(t.Generic[T_co]):
@@ -254,7 +372,24 @@ CallbackExpansionHandler = CallbackCallHandler[str]
 CallbackInitializerHandler = CallbackCallHandler[None]
 
 
-class CallHandlerContainer(t.Generic[T]):
+class CallHandlerContainer(t.Protocol[T_co]):
+    """
+    A read-only call handler container.
+    """
+    def get(self, name: str) -> CallHandler[T_co]: ...
+    def get_for_call(self, name: str) -> CallHandler[T_co]: ...
+    def __iter__(self) -> t.Iterator[CallHandler[T_co]]: ...
+
+
+class MutableCallHandlerContainer(CallHandlerContainer[T], t.Protocol[T]):
+    """
+    A mutable call handler container.
+    """
+    def add(self, handler: CallHandler[T], name: str = "") -> None: ...
+    def remove(self, handler: t.Union[CallHandler[T], str]) -> None: ...
+
+
+class BaseCallHandlerContainer(t.Generic[T]):
     """
     Generic container for ScrollCallHandlers.
     """
@@ -276,6 +411,9 @@ class CallHandlerContainer(t.Generic[T]):
 
         del self._handlers[name]
 
+    def get(self, name: str) -> CallHandler[T]:
+        return self._handlers[name]
+
     def get_for_call(self, name: str) -> CallHandler[T]:
         """
         Get the handler for a given command name.
@@ -288,6 +426,33 @@ class CallHandlerContainer(t.Generic[T]):
 
     def __iter__(self) -> t.Iterator[CallHandler[T]]:
         yield from self._handlers.values()
+
+
+class ChoiceCallHandlerContainer(t.Generic[T]):
+    def __init__(self, *containers: CallHandlerContainer[T]):
+        self.containers = containers
+
+    def get(self, name: str) -> CallHandler[T]:
+        for container in self.containers:
+            try:
+                return container.get(name)
+            except KeyError:
+                pass
+
+        raise KeyError(name)
+
+    def get_for_call(self, name: str) -> CallHandler[T]:
+        for container in self.containers:
+            try:
+                return container.get_for_call(name)
+            except KeyError:
+                pass
+
+        raise KeyError(name)
+
+    def __iter__(self) -> t.Iterator[CallHandler[T]]:
+        for container in self.containers:
+            yield from container
 
 
 class InterpreterError(errors.PositionalError):
@@ -345,6 +510,14 @@ class InterpreterStop(errors.ScrollError):
         super().__init__("InterpreterStop")
 
 
+class InterpreterReturn(errors.ScrollError):
+    """
+    An exception raised to signal a return from a runtime call.
+    """
+    def __init__(self) -> None:
+        super().__init__("InterpreterReturn")
+
+
 class Interpreter:
     """
     The interpreter implementation for Scrolls.
@@ -354,10 +527,10 @@ class Interpreter:
         context_cls: t.Type[InterpreterContext] = InterpreterContext,
         statement_limit: int = 0
     ):
-        self._command_handlers: CallHandlerContainer[None] = CallHandlerContainer()
-        self._control_handlers: CallHandlerContainer[None] = CallHandlerContainer()
-        self._expansion_handlers: CallHandlerContainer[str] = CallHandlerContainer()
-        self._initializers: CallHandlerContainer[None] = CallHandlerContainer()
+        self._command_handlers: BaseCallHandlerContainer[None] = BaseCallHandlerContainer()
+        self._control_handlers: BaseCallHandlerContainer[None] = BaseCallHandlerContainer()
+        self._expansion_handlers: BaseCallHandlerContainer[str] = BaseCallHandlerContainer()
+        self._initializers: BaseCallHandlerContainer[None] = BaseCallHandlerContainer()
         self.context_cls = context_cls
 
         self.statement_limit = statement_limit
@@ -369,19 +542,19 @@ class Interpreter:
             return context.statement_count > self.statement_limit
 
     @property
-    def command_handlers(self) -> CallHandlerContainer[None]:
+    def command_handlers(self) -> BaseCallHandlerContainer[None]:
         return self._command_handlers
 
     @property
-    def control_handlers(self) -> CallHandlerContainer[None]:
+    def control_handlers(self) -> BaseCallHandlerContainer[None]:
         return self._control_handlers
 
     @property
-    def expansion_handlers(self) -> CallHandlerContainer[str]:
+    def expansion_handlers(self) -> BaseCallHandlerContainer[str]:
         return self._expansion_handlers
 
     @property
-    def initializers(self) -> CallHandlerContainer[None]:
+    def initializers(self) -> BaseCallHandlerContainer[None]:
         return self._initializers
 
     def apply_initializers(self, context: InterpreterContext) -> None:
@@ -448,6 +621,11 @@ class Interpreter:
         except InterpreterStop:
             logger.debug("Interpreter stop raised.")
             pass
+        except InterpreterReturn:
+            raise InterpreterError(
+                context,
+                f"returning only allowed in functions"
+            )
 
         return context
 
@@ -515,7 +693,16 @@ class Interpreter:
             context.current_node = name_node
             raise MissingCallError(context, expected_node_type.name, call_name)
 
-        result: T_co = handler.handle_call(context)
+        try:
+            result: T_co = handler.handle_call(context)
+        except InterpreterReturn:
+            # Ensure call stack is properly changed even on returns
+            if context.call_stack:
+                context.pop_call()
+            else:
+                context.reset_call()
+
+            raise
 
         if context.call_stack:
             context.pop_call()
@@ -535,7 +722,10 @@ class Interpreter:
 
     def interpret_command(self, context: InterpreterContext, node: ast.ASTNode) -> None:
         self.interpret_call(
-            self.command_handlers,
+            ChoiceCallHandlerContainer(
+                context.runtime_commands,
+                self.command_handlers
+            ),
             context,
             node,
             ast.ASTNodeType.COMMAND_CALL
@@ -554,12 +744,17 @@ class Interpreter:
             )
 
     def interpret_expansion_call(self, context: InterpreterContext, node: ast.ASTNode) -> str:
-        return self.interpret_call(
-            self.expansion_handlers,
+        result = self.interpret_call(
+            ChoiceCallHandlerContainer(
+                context.runtime_expansions,
+                self.expansion_handlers
+            ),
             context,
             node,
             ast.ASTNodeType.EXPANSION_CALL
         )
+        assert result is not None
+        return result
 
     def interpret_sub_expansion(self, context: InterpreterContext, node: ast.ASTNode) -> str:
         """Get the raw string for an expansion."""

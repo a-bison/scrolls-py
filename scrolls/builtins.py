@@ -2,7 +2,7 @@ import random
 import typing as t
 from functools import reduce
 
-from . import interpreter
+from . import ast, interpreter
 
 __all__ = (
     "StdIoCommandHandler",
@@ -61,6 +61,8 @@ class BuiltinInitializer(interpreter.Initializer):
     def handle_call(self, context: interpreter.InterpreterContext) -> None:
         context.set_var("true", TRUE)
         context.set_var("false", FALSE)
+        context.runtime_commands.add(interpreter.RuntimeCallHandler(), "__def__")
+        context.runtime_expansions.add(interpreter.RuntimeCallHandler(), "__def__")
 
 
 class BuiltinCommandHandler(interpreter.CallbackCommandHandler):
@@ -72,6 +74,12 @@ class BuiltinCommandHandler(interpreter.CallbackCommandHandler):
         self.add_call("set", self.set)
         self.add_call("unset", self.unset)
         self.add_call("stop", self.stop)
+        self.add_call("return", self._return)
+
+    def _return(self, context: interpreter.InterpreterContext) -> None:
+        retval = " ".join(context.args)
+        context.set_retval(retval)
+        raise interpreter.InterpreterReturn()
 
     def set(self, context: interpreter.InterpreterContext) -> None:
         if not context.args:
@@ -111,6 +119,40 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
         self.add_call("for", self._for)
         self.add_call("if", self._if)
         self.add_call("while", self._while)
+        self.add_call("def", self._def)
+
+    def _def(self, context: interpreter.InterpreterContext) -> None:
+        args = context.args
+
+        if len(args) < 1:
+            raise InterruptedError(
+                context,
+
+            )
+
+        command_calls = context.control_node.find_all(
+            lambda node: (node.type == ast.ASTNodeType.COMMAND_CALL and
+                          bool(node.children))
+        )
+
+        has_return = False
+        for node in command_calls:
+            name_node = node.children[0]
+
+            if name_node.type == ast.ASTNodeType.STRING and name_node.str_content() == "return":
+                has_return = True
+                break
+
+        if has_return:
+            t.cast(
+                interpreter.RuntimeCallHandler[str],
+                context.runtime_expansions.get("__def__")
+            ).define(args[0], context.control_node, args[1:])
+        else:
+            t.cast(
+                interpreter.RuntimeCallHandler[None],
+                context.runtime_commands.get("__def__")
+            ).define(args[0], context.control_node, args[1:])
 
     def repeat(self, context: interpreter.InterpreterContext) -> None:
         if len(context.args) != 1:
