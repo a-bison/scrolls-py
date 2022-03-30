@@ -1,3 +1,4 @@
+import abc
 import dataclasses
 import logging
 import types
@@ -200,6 +201,14 @@ class ScrollCallback(t.Protocol[T_co]):
     def __call__(self, context: AnyContextTV) -> T_co: ...
 
 
+class Initializer(abc.ABC):
+    @abc.abstractmethod
+    def handle_call(self, context: AnyContextTV) -> None: ...
+
+    def __contains__(self, command_name: str) -> bool:
+        return False
+
+
 class CallbackCallHandler(t.Generic[T_co]):
     """
     A basic call handler that uses Callables (ScrollCallback[T]) to
@@ -242,6 +251,7 @@ class CallbackCallHandler(t.Generic[T_co]):
 CallbackCommandHandler = CallbackCallHandler[None]
 CallbackControlHandler = CallbackCallHandler[None]
 CallbackExpansionHandler = CallbackCallHandler[str]
+CallbackInitializerHandler = CallbackCallHandler[None]
 
 
 class CallHandlerContainer(t.Generic[T]):
@@ -275,6 +285,9 @@ class CallHandlerContainer(t.Generic[T]):
                 return handler
 
         raise KeyError(name)
+
+    def __iter__(self) -> t.Iterator[CallHandler[T]]:
+        yield from self._handlers.values()
 
 
 class InterpreterError(errors.PositionalError):
@@ -344,6 +357,7 @@ class Interpreter:
         self._command_handlers: CallHandlerContainer[None] = CallHandlerContainer()
         self._control_handlers: CallHandlerContainer[None] = CallHandlerContainer()
         self._expansion_handlers: CallHandlerContainer[str] = CallHandlerContainer()
+        self._initializers: CallHandlerContainer[None] = CallHandlerContainer()
         self.context_cls = context_cls
 
         self.statement_limit = statement_limit
@@ -365,6 +379,14 @@ class Interpreter:
     @property
     def expansion_handlers(self) -> CallHandlerContainer[str]:
         return self._expansion_handlers
+
+    @property
+    def initializers(self) -> CallHandlerContainer[None]:
+        return self._initializers
+
+    def apply_initializers(self, context: InterpreterContext) -> None:
+        for init in self.initializers:
+            init.handle_call(context)
 
     def run(
         self,
@@ -419,6 +441,8 @@ class Interpreter:
 
         context.interpreter = self
         context.script = tree.script
+        self.apply_initializers(context)
+
         try:
             self.interpret_root(context, tree.root)
         except InterpreterStop:

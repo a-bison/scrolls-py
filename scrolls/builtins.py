@@ -15,8 +15,9 @@ __all__ = (
     "StringExpansionHandler",
     "TRUE",
     "FALSE",
-    "true",
-    "false"
+    "bool_to_scrolls_bool",
+    "scrolls_bool_to_bool",
+    "BuiltinInitializer"
 )
 
 
@@ -24,15 +25,12 @@ TRUE = "1"
 FALSE = "0"
 
 
-def false(x: str) -> bool:
-    return x == FALSE
+def scrolls_bool_to_bool(x: str) -> bool:
+    # "0" is interpreted as FALSE, everything as TRUE.
+    return not x == FALSE
 
 
-def true(x: str) -> bool:
-    return not false(x)
-
-
-def to_scrolls_bool(b: bool) -> str:
+def bool_to_scrolls_bool(b: bool) -> str:
     return TRUE if b else FALSE
 
 
@@ -57,6 +55,12 @@ class StdIoCommandHandler(interpreter.CallbackCommandHandler):
 
         result = input()
         context.set_var(context.args[0], result)
+
+
+class BuiltinInitializer(interpreter.Initializer):
+    def handle_call(self, context: interpreter.InterpreterContext) -> None:
+        context.set_var("true", TRUE)
+        context.set_var("false", FALSE)
 
 
 class BuiltinCommandHandler(interpreter.CallbackCommandHandler):
@@ -159,7 +163,7 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
                 f"if: needs one and only one argument"
             )
 
-        if true(context.args[0]):
+        if scrolls_bool_to_bool(context.args[0]):
             context.interpreter.interpret_statement(context, context.control_node)
 
     def _while(self, context: interpreter.InterpreterContext) -> None:
@@ -171,7 +175,7 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
 
         arg = context.args[0]
 
-        while true(arg):
+        while scrolls_bool_to_bool(arg):
             context.interpreter.interpret_statement(context, context.control_node)
 
             # HACK:
@@ -336,26 +340,26 @@ class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
         return a, b
 
     def equals(self, context: interpreter.InterpreterContext) -> str:
-        return to_scrolls_bool(self.equals_bool(context))
+        return bool_to_scrolls_bool(self.equals_bool(context))
 
     def not_equals(self, context: interpreter.InterpreterContext) -> str:
-        return to_scrolls_bool(not self.equals_bool(context))
+        return bool_to_scrolls_bool(not self.equals_bool(context))
 
     def gt(self, context: interpreter.InterpreterContext) -> str:
         a, b = self.get_numeric_compare_args(context)
-        return to_scrolls_bool(a > b)
+        return bool_to_scrolls_bool(a > b)
 
     def lt(self, context: interpreter.InterpreterContext) -> str:
         a, b = self.get_numeric_compare_args(context)
-        return to_scrolls_bool(a < b)
+        return bool_to_scrolls_bool(a < b)
 
     def gte(self, context: interpreter.InterpreterContext) -> str:
         a, b = self.get_numeric_compare_args(context)
-        return to_scrolls_bool(a >= b)
+        return bool_to_scrolls_bool(a >= b)
 
     def lte(self, context: interpreter.InterpreterContext) -> str:
         a, b = self.get_numeric_compare_args(context)
-        return to_scrolls_bool(a <= b)
+        return bool_to_scrolls_bool(a <= b)
 
 
 class LogicExpansionHandler(interpreter.CallbackExpansionHandler):
@@ -373,7 +377,7 @@ class LogicExpansionHandler(interpreter.CallbackExpansionHandler):
                 f"not: need one and only one argument"
             )
 
-        return to_scrolls_bool(not true(context.args[0]))
+        return bool_to_scrolls_bool(not scrolls_bool_to_bool(context.args[0]))
 
 
 class StringExpansionHandler(interpreter.CallbackExpansionHandler):

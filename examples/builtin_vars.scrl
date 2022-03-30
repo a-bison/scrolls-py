@@ -1,0 +1,7 @@
+!if($true) {
+    print true is $(cat $true .)
+}
+
+!if($(not $false)) {
+    print false is $(cat $false .)
+}

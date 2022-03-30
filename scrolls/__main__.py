@@ -35,6 +35,7 @@ def main() -> None:
         parser.error(f"file: {file} is not a file")
 
     interpreter = scrolls.Interpreter()
+    interpreter.initializers.add(scrolls.BuiltinInitializer())
     interpreter.control_handlers.add(scrolls.BuiltinControlHandler())
     interpreter.command_handlers.add(scrolls.BuiltinCommandHandler())
     interpreter.command_handlers.add(scrolls.StdIoCommandHandler())
