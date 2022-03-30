@@ -26,7 +26,7 @@ FALSE = "0"
 
 
 def scrolls_bool_to_bool(x: str) -> bool:
-    # "0" is interpreted as FALSE, everything as TRUE.
+    # "0" is interpreted as FALSE, everything else as TRUE.
     return not x == FALSE
 
 
