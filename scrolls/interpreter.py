@@ -525,7 +525,8 @@ class Interpreter:
     def __init__(
         self,
         context_cls: t.Type[InterpreterContext] = InterpreterContext,
-        statement_limit: int = 0
+        statement_limit: int = 0,
+        call_depth_limit: int = 200
     ):
         self._command_handlers: BaseCallHandlerContainer[None] = BaseCallHandlerContainer()
         self._control_handlers: BaseCallHandlerContainer[None] = BaseCallHandlerContainer()
@@ -534,12 +535,19 @@ class Interpreter:
         self.context_cls = context_cls
 
         self.statement_limit = statement_limit
+        self.call_depth_limit = call_depth_limit
 
     def over_statement_limit(self, context: InterpreterContext) -> bool:
         if self.statement_limit == 0:
             return False
         else:
             return context.statement_count > self.statement_limit
+
+    def over_call_depth_limit(self, context: InterpreterContext) -> bool:
+        if self.call_depth_limit == 0:
+            return False
+        else:
+            return len(context.call_stack) > self.call_depth_limit
 
     @property
     def command_handlers(self) -> BaseCallHandlerContainer[None]:
@@ -684,6 +692,11 @@ class Interpreter:
 
         if context.in_call():
             context.push_call()
+            if self.over_call_depth_limit(context):
+                raise InterpreterError(
+                    context,
+                    f"Maximum call stack depth ({self.call_depth_limit}) exceeded."
+                )
 
         context.set_call(call_name, call_args, arg_node_map, control_node=control_node)
 
