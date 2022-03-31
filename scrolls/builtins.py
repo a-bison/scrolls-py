@@ -2,7 +2,7 @@ import random
 import typing as t
 from functools import reduce
 
-from . import ast, interpreter
+from . import ast, containers, interpreter
 
 __all__ = (
     "StdIoCommandHandler",
@@ -17,12 +17,15 @@ __all__ = (
     "FALSE",
     "bool_to_scrolls_bool",
     "scrolls_bool_to_bool",
-    "BuiltinInitializer"
+    "BuiltinInitializer",
+    "base_config"
 )
 
 
 TRUE = "1"
 FALSE = "0"
+
+base_config = containers.DecoratorInterpreterConfig()
 
 
 def scrolls_bool_to_bool(x: str) -> bool:
@@ -57,6 +60,7 @@ class StdIoCommandHandler(interpreter.CallbackCommandHandler):
         context.set_var(context.args[0], result)
 
 
+@base_config.initializer
 class BuiltinInitializer(interpreter.Initializer):
     def handle_call(self, context: interpreter.InterpreterContext) -> None:
         context.set_var("true", TRUE)
@@ -65,6 +69,7 @@ class BuiltinInitializer(interpreter.Initializer):
         context.runtime_expansions.add(interpreter.RuntimeCallHandler(), "__def__")
 
 
+@base_config.commandhandler
 class BuiltinCommandHandler(interpreter.CallbackCommandHandler):
     """
     Implements built-in command statements
@@ -109,6 +114,7 @@ class BuiltinCommandHandler(interpreter.CallbackCommandHandler):
         raise interpreter.InterpreterStop
 
 
+@base_config.controlhandler
 class BuiltinControlHandler(interpreter.CallbackControlHandler):
     """
     Implements built-in control statements
@@ -272,6 +278,7 @@ class RandomExpansionHandler(interpreter.CallbackExpansionHandler):
         return str(random.uniform(lower, upper))
 
 
+@base_config.expansionhandler
 class ArithmeticExpansionHandler(interpreter.CallbackExpansionHandler):
     """
     Implements basic arithmetic expansions. These aren't very efficient, but
@@ -341,6 +348,7 @@ class ArithmeticExpansionHandler(interpreter.CallbackExpansionHandler):
         return str(int(args[0]) % int(args[1]))
 
 
+@base_config.expansionhandler
 class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
     """
     Implements basic comparison operators.
@@ -414,6 +422,7 @@ class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
         return bool_to_scrolls_bool(context.args[0] in context.args[1:])
 
 
+@base_config.expansionhandler
 class LogicExpansionHandler(interpreter.CallbackExpansionHandler):
     """
     Implements basic logic operators.
@@ -432,6 +441,7 @@ class LogicExpansionHandler(interpreter.CallbackExpansionHandler):
         return bool_to_scrolls_bool(not scrolls_bool_to_bool(context.args[0]))
 
 
+@base_config.expansionhandler
 class StringExpansionHandler(interpreter.CallbackExpansionHandler):
     """
     Implements basic string manipulation functions.

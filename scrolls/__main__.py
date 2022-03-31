@@ -35,15 +35,9 @@ def main() -> None:
         parser.error(f"file: {file} is not a file")
 
     interpreter = scrolls.Interpreter()
-    interpreter.initializers.add(scrolls.BuiltinInitializer())
-    interpreter.control_handlers.add(scrolls.BuiltinControlHandler())
-    interpreter.command_handlers.add(scrolls.BuiltinCommandHandler())
+    scrolls.base_config.configure(interpreter)
     interpreter.command_handlers.add(scrolls.StdIoCommandHandler())
     interpreter.expansion_handlers.add(scrolls.RandomExpansionHandler())
-    interpreter.expansion_handlers.add(scrolls.ArithmeticExpansionHandler())
-    interpreter.expansion_handlers.add(scrolls.ComparisonExpansionHandler())
-    interpreter.expansion_handlers.add(scrolls.LogicExpansionHandler())
-    interpreter.expansion_handlers.add(scrolls.StringExpansionHandler())
 
     with open(file, 'r') as f:
         script = f.read()

@@ -403,6 +403,10 @@ class BaseCallHandlerContainer(t.Generic[T]):
         logger.debug(f"Register call handler {name}")
         self._handlers[name] = handler
 
+    def add_all(self, handlers: t.Sequence[CallHandler[T]]) -> None:
+        for handler in handlers:
+            self.add(handler)
+
     def remove(self, handler: t.Union[CallHandler[T], str]) -> None:
         if isinstance(handler, str):
             name = handler
