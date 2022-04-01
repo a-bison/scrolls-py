@@ -1,4 +1,8 @@
-# Scrolls
+<p align="center">
+  <img src="media/scrolls-logo.png" width="200"/>
+</p>
+
+<h1 align="center">Scrolls</h1>
 Scrolls is a small interpreter originally designed to allow users of my discord bots to
 make custom commands. It prioritizes control over the interpreter to help prevent abuse,
 while still allowing tight integration with python code.
