@@ -1,8 +1,8 @@
+import operator
 import random
 import typing as t
-from functools import reduce
 
-from . import ast, containers, interpreter
+from . import ast, containers, datatypes, interpreter
 
 __all__ = (
     "StdIoCommandHandler",
@@ -13,28 +13,11 @@ __all__ = (
     "ComparisonExpansionHandler",
     "LogicExpansionHandler",
     "StringExpansionHandler",
-    "TRUE",
-    "FALSE",
-    "bool_to_scrolls_bool",
-    "scrolls_bool_to_bool",
     "BuiltinInitializer",
     "base_config"
 )
 
-
-TRUE = "1"
-FALSE = "0"
-
 base_config = containers.DecoratorInterpreterConfig()
-
-
-def scrolls_bool_to_bool(x: str) -> bool:
-    # "0" is interpreted as FALSE, everything else as TRUE.
-    return not x == FALSE
-
-
-def bool_to_scrolls_bool(b: bool) -> str:
-    return TRUE if b else FALSE
 
 
 class StdIoCommandHandler(interpreter.CallbackCommandHandler):
@@ -63,8 +46,8 @@ class StdIoCommandHandler(interpreter.CallbackCommandHandler):
 @base_config.initializer
 class BuiltinInitializer(interpreter.Initializer):
     def handle_call(self, context: interpreter.InterpreterContext) -> None:
-        context.set_var("true", TRUE)
-        context.set_var("false", FALSE)
+        context.set_var("true", datatypes.TRUE)
+        context.set_var("false", datatypes.FALSE)
         context.runtime_commands.add(interpreter.RuntimeCallHandler(), "__def__")
         context.runtime_expansions.add(interpreter.RuntimeCallHandler(), "__def__")
 
@@ -211,7 +194,7 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
                 f"if: needs one and only one argument"
             )
 
-        if scrolls_bool_to_bool(context.args[0]):
+        if datatypes.scrolls_bool_to_bool(context.args[0]):
             context.interpreter.interpret_statement(context, context.control_node)
 
     def _while(self, context: interpreter.InterpreterContext) -> None:
@@ -223,7 +206,7 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
 
         arg = context.args[0]
 
-        while scrolls_bool_to_bool(arg):
+        while datatypes.scrolls_bool_to_bool(arg):
             context.interpreter.interpret_statement(context, context.control_node)
 
             # HACK:
@@ -294,58 +277,39 @@ class ArithmeticExpansionHandler(interpreter.CallbackExpansionHandler):
         self.add_call("%", self.mod)
 
     @staticmethod
-    def force_float(context: interpreter.InterpreterContext, x: str) -> float:
-        try:
-            return float(x)
-        except ValueError as e:
-            raise interpreter.InterpreterError(
-                context,
-                f"bad float value {x}"
-            )
+    def unary(context: interpreter.InterpreterContext, op: datatypes.UnaryNumOpT) -> str:
+        return str(datatypes.apply_unary_num_op(context, op)[0])
 
     @staticmethod
-    def force_all_float(context: interpreter.InterpreterContext) -> t.Sequence[float]:
-        if not context.args:
-            raise interpreter.InterpreterError(
-                context,
-                f"arithmetic expansion must take at least one argument"
-            )
-
-        return [
-            ArithmeticExpansionHandler.force_float(context, x) for x in context.args
-        ]
+    def binary(context: interpreter.InterpreterContext, op: datatypes.BinaryNumOpT) -> str:
+        return str(datatypes.apply_binary_num_op(context, op)[0])
 
     @staticmethod
-    def product(l: t.Sequence[float]) -> float:
-        return reduce(lambda x, y: x * y, l, 1.0)
+    def mass(
+        context: interpreter.InterpreterContext,
+        reduce_op: datatypes.BinaryNumOpT,
+        final_op: datatypes.BinaryNumOpT
+    ) -> str:
+        return str(datatypes.apply_mass_binary_num_op(context, reduce_op, final_op)[0])
 
-    def add(self, context: interpreter.InterpreterContext) -> str:
-        return str(sum(self.force_all_float(context)))
+    @staticmethod
+    def reduce(
+        context: interpreter.InterpreterContext,
+        reduce_op: datatypes.BinaryNumOpT
+    ) -> str:
+        return str(datatypes.apply_reduce_binary_num_op(context, reduce_op)[0])
 
     def sub(self, context: interpreter.InterpreterContext) -> str:
-        args = self.force_all_float(context)
+        # Sub behaves a little differently. If only one arg, negate instead of subtracting.
+        if len(context.args) == 1:
+            return self.unary(context, operator.neg)
 
-        if len(args) == 1:
-            return str(-args[0])
+        return self.mass(context, reduce_op=operator.add, final_op=operator.sub)
 
-        return str(args[0] - sum(args[1:]))
-
-    def mul(self, context: interpreter.InterpreterContext) -> str:
-        return str(self.product(self.force_all_float(context)))
-
-    def div(self, context: interpreter.InterpreterContext) -> str:
-        args = self.force_all_float(context)
-        return str(args[0] / self.product(args[1:]))
-
-    def mod(self, context: interpreter.InterpreterContext) -> str:
-        args = self.force_all_float(context)
-        if len(args) != 2:
-            raise interpreter.InterpreterError(
-                context,
-                f"mod: must have exactly 2 args"
-            )
-
-        return str(int(args[0]) % int(args[1]))
+    def add(self, context: interpreter.InterpreterContext) -> str: return self.reduce(context, operator.add)
+    def mul(self, context: interpreter.InterpreterContext) -> str: return self.reduce(context, operator.mul)
+    def div(self, context: interpreter.InterpreterContext) -> str: return self.mass(context, reduce_op=operator.mul, final_op=operator.truediv)
+    def mod(self, context: interpreter.InterpreterContext) -> str: return self.binary(context, operator.mod)
 
 
 @base_config.expansionhandler
@@ -373,7 +337,7 @@ class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
             )
 
         try:
-            float_args = ArithmeticExpansionHandler.force_all_float(context)
+            float_args, _ = datatypes.require_all_numeric(context, args)
             return float_args[0] == float_args[1]
         except interpreter.InterpreterError:
             return args[0] == args[1]
@@ -386,31 +350,31 @@ class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
                 f"{context.call_name}: must have exactly 2 args"
             )
 
-        a, b = ArithmeticExpansionHandler.force_all_float(context)
+        (a, b), _ = datatypes.require_all_numeric(context, args)
 
         return a, b
 
     def equals(self, context: interpreter.InterpreterContext) -> str:
-        return bool_to_scrolls_bool(self.equals_bool(context))
+        return datatypes.bool_to_scrolls_bool(self.equals_bool(context))
 
     def not_equals(self, context: interpreter.InterpreterContext) -> str:
-        return bool_to_scrolls_bool(not self.equals_bool(context))
+        return datatypes.bool_to_scrolls_bool(not self.equals_bool(context))
 
     def gt(self, context: interpreter.InterpreterContext) -> str:
         a, b = self.get_numeric_compare_args(context)
-        return bool_to_scrolls_bool(a > b)
+        return datatypes.bool_to_scrolls_bool(a > b)
 
     def lt(self, context: interpreter.InterpreterContext) -> str:
         a, b = self.get_numeric_compare_args(context)
-        return bool_to_scrolls_bool(a < b)
+        return datatypes.bool_to_scrolls_bool(a < b)
 
     def gte(self, context: interpreter.InterpreterContext) -> str:
         a, b = self.get_numeric_compare_args(context)
-        return bool_to_scrolls_bool(a >= b)
+        return datatypes.bool_to_scrolls_bool(a >= b)
 
     def lte(self, context: interpreter.InterpreterContext) -> str:
         a, b = self.get_numeric_compare_args(context)
-        return bool_to_scrolls_bool(a <= b)
+        return datatypes.bool_to_scrolls_bool(a <= b)
 
     def _in(self, context: interpreter.InterpreterContext) -> str:
         if len(context.args) == 0:
@@ -419,7 +383,7 @@ class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
                 f"{context.call_name} requires at least one argument"
             )
 
-        return bool_to_scrolls_bool(context.args[0] in context.args[1:])
+        return datatypes.bool_to_scrolls_bool(context.args[0] in context.args[1:])
 
 
 @base_config.expansionhandler
@@ -438,7 +402,7 @@ class LogicExpansionHandler(interpreter.CallbackExpansionHandler):
                 f"not: need one and only one argument"
             )
 
-        return bool_to_scrolls_bool(not scrolls_bool_to_bool(context.args[0]))
+        return datatypes.bool_to_scrolls_bool(not datatypes.scrolls_bool_to_bool(context.args[0]))
 
 
 @base_config.expansionhandler
