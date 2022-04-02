@@ -1,0 +1,19 @@
+set int_vec 12 42 2 5 10
+set float_vec 12.0 4.5 3.3333333 7
+
+!def(op_test vector) {
+    print testing $vector
+    !for(op in + - * /) {
+        print op $op = $($op $^vector)
+    }
+    print
+}
+
+print int_vec
+op_test $int_vec
+
+print float_vec
+op_test $float_vec
+
+print test negate
+print $(cat - 47) = $(- 47)
