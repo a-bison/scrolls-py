@@ -226,7 +226,9 @@ class Tokenizer:
         self.string_literal_stop = "".join([key for key in self.charmap]) + self.whitespace
 
         self.consume_rest_stop: t.Sequence[str] = []
+        self.single_char_token_enable = True
         self.set_consume_rest_all(False)
+        self.set_single_char_token_enable(True)
 
     def set_consume_rest_all(self, consume_all: bool) -> None:
         if not consume_all:
@@ -235,6 +237,14 @@ class Tokenizer:
             ]
         else:
             self.consume_rest_stop = []
+
+    def set_single_char_token_enable(self, en: bool) -> None:
+        self.single_char_token_enable = en
+
+        if en:
+            self.string_literal_stop = "".join([key for key in self.charmap]) + self.whitespace
+        else:
+            self.string_literal_stop = self.whitespace
 
     def error(self, err_type: t.Type[errors.PositionalError], message: str) -> t.NoReturn:
         raise err_type(
@@ -262,6 +272,9 @@ class Tokenizer:
 
     # Get a single char token.
     def accept_single_char(self) -> t.Optional[Token]:
+        if not self.single_char_token_enable:
+            return None
+
         char = self.get_char()
 
         if char in self.charmap:

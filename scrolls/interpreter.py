@@ -588,11 +588,13 @@ class Interpreter:
         statement: str,
         context: t.Optional[InterpreterContext] = None,
         consume_rest_triggers: t.Mapping[str, int] = types.MappingProxyType({}),
-        consume_rest_consumes_all: bool = False
+        consume_rest_consumes_all: bool = False,
+        single_char_token_enable: bool = True
     ) -> InterpreterContext:
         # Set up parsing and parse statement
         tokenizer = ast.Tokenizer(statement, consume_rest_triggers)
         tokenizer.set_consume_rest_all(consume_rest_consumes_all)
+        tokenizer.set_single_char_token_enable(single_char_token_enable)
         parse_ctx = ast.ParseContext(tokenizer)
         statement_node = ast.parse_statement(parse_ctx)
 
