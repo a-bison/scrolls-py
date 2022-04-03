@@ -152,6 +152,50 @@ set v test
 command $(select $(select arg1 arg2 $v) $v)
 ```
 
+### Datatypes
+
+Scrolls is a weakly typed language, and its only real datatype is the string (specifically
+utf-8 strings). All calls will convert to other datatypes internally as needed, and will
+always return strings. That being said, built-in Scrolls calls will follow certain rules
+when interpreting strings.
+
+#### Numeric
+
+For the purposes of arithmetic and numeric comparisons:
+- Floats are strings such as `3.5`, `-0.12`, `1.0`, etc.
+- Integers are any numeric string with no decimal point; `1`, `-32`, etc.
+
+Most arithmetic operators operate as follows:
+- If all inputs are formatted as integers, the output will be too.
+- If one or more inputs are formatted as floats, the output will be formatted as float.
+
+For example:
+- `$(+ 1 2 3)` will result in `6`
+- `$(+ 1 2 3.0)` will result in `6.0`
+
+Notable exceptions to this are:
+- Division (`/`) will always output floats.
+
+#### Strings
+
+Strings are the default datatype in Scrolls, and do not need to be enclosed in quotes.
+Everything is a string, including all command/expansion call names. As such the following
+is valid:
+
+```
+!for(operator in + - * /) {
+  print $($operator 5 8) 
+}
+```
+
+Expansions are interpreted as they're needed, and so they may be used to refer to
+call names, including anything built in. See [arithmetic.scrl](examples/arithmetic.scrl)
+for an example of this idea.
+
+#### Structures (Lists, etc.)
+
+There are no data structures, yet.
+
 ### Comments
 
 Scrolls does not currently support comments.
