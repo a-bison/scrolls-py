@@ -1,3 +1,4 @@
+import functools
 import operator
 import random
 import typing as t
@@ -270,10 +271,13 @@ class ArithmeticExpansionHandler(interpreter.CallbackExpansionHandler):
     """
     def __init__(self) -> None:
         super().__init__()
+        self.add_call("toint", self.toint)
+        self.add_call("tofloat", self.tofloat)
         self.add_call("+", self.add)
         self.add_call("-", self.sub)
         self.add_call("*", self.mul)
         self.add_call("/", self.div)
+        self.add_call("//", self.intdiv)
         self.add_call("%", self.mod)
 
     @staticmethod
@@ -306,9 +310,12 @@ class ArithmeticExpansionHandler(interpreter.CallbackExpansionHandler):
 
         return self.mass(context, reduce_op=operator.add, final_op=operator.sub)
 
+    def toint(self, context: interpreter.InterpreterContext) -> str: return self.unary(context, datatypes.toint)
+    def tofloat(self, context: interpreter.InterpreterContext) -> str: return self.unary(context, datatypes.tofloat)
     def add(self, context: interpreter.InterpreterContext) -> str: return self.reduce(context, operator.add)
     def mul(self, context: interpreter.InterpreterContext) -> str: return self.reduce(context, operator.mul)
     def div(self, context: interpreter.InterpreterContext) -> str: return self.mass(context, reduce_op=operator.mul, final_op=operator.truediv)
+    def intdiv(self, context: interpreter.InterpreterContext) -> str: return self.mass(context, reduce_op=operator.mul, final_op=operator.floordiv)
     def mod(self, context: interpreter.InterpreterContext) -> str: return self.binary(context, operator.mod)
 
 

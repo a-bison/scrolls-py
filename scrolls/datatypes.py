@@ -51,6 +51,14 @@ def bool_to_scrolls_bool(b: bool) -> str:
     return TRUE if b else FALSE
 
 
+def toint(n: t.Union[int, float]) -> int:
+    return int(n)
+
+
+def tofloat(n: t.Union[int, float]) -> float:
+    return float(n)
+
+
 def str_to_numeric(s: str) -> tuple[t.Optional[t.Union[int, float]], NumericType]:
     try:
         return int(s), NumericType.INT
