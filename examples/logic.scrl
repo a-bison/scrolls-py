@@ -1,0 +1,16 @@
+set bool_vec1 0 1 1 0 0
+set bool_vec2 0 0 1 0 0 0
+
+!def(op_test vector) {
+    print test bool vector $vector
+    !for(op in and or xor) {
+        print op $op = $($op $^vector)
+    }
+    print
+}
+
+print not not 1 = $(not $(not 1))
+print not not 0 = $(not $(not 0))
+
+op_test $bool_vec1
+op_test $bool_vec2

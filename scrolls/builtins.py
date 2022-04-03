@@ -195,7 +195,7 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
                 f"if: needs one and only one argument"
             )
 
-        if datatypes.scrolls_bool_to_bool(context.args[0]):
+        if datatypes.str_to_bool(context.args[0]):
             context.interpreter.interpret_statement(context, context.control_node)
 
     def _while(self, context: interpreter.InterpreterContext) -> None:
@@ -207,7 +207,7 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
 
         arg = context.args[0]
 
-        while datatypes.scrolls_bool_to_bool(arg):
+        while datatypes.str_to_bool(arg):
             context.interpreter.interpret_statement(context, context.control_node)
 
             # HACK:
@@ -362,26 +362,26 @@ class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
         return a, b
 
     def equals(self, context: interpreter.InterpreterContext) -> str:
-        return datatypes.bool_to_scrolls_bool(self.equals_bool(context))
+        return datatypes.bool_to_str(self.equals_bool(context))
 
     def not_equals(self, context: interpreter.InterpreterContext) -> str:
-        return datatypes.bool_to_scrolls_bool(not self.equals_bool(context))
+        return datatypes.bool_to_str(not self.equals_bool(context))
 
     def gt(self, context: interpreter.InterpreterContext) -> str:
         a, b = self.get_numeric_compare_args(context)
-        return datatypes.bool_to_scrolls_bool(a > b)
+        return datatypes.bool_to_str(a > b)
 
     def lt(self, context: interpreter.InterpreterContext) -> str:
         a, b = self.get_numeric_compare_args(context)
-        return datatypes.bool_to_scrolls_bool(a < b)
+        return datatypes.bool_to_str(a < b)
 
     def gte(self, context: interpreter.InterpreterContext) -> str:
         a, b = self.get_numeric_compare_args(context)
-        return datatypes.bool_to_scrolls_bool(a >= b)
+        return datatypes.bool_to_str(a >= b)
 
     def lte(self, context: interpreter.InterpreterContext) -> str:
         a, b = self.get_numeric_compare_args(context)
-        return datatypes.bool_to_scrolls_bool(a <= b)
+        return datatypes.bool_to_str(a <= b)
 
     def _in(self, context: interpreter.InterpreterContext) -> str:
         if len(context.args) == 0:
@@ -390,7 +390,7 @@ class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
                 f"{context.call_name} requires at least one argument"
             )
 
-        return datatypes.bool_to_scrolls_bool(context.args[0] in context.args[1:])
+        return datatypes.bool_to_str(context.args[0] in context.args[1:])
 
 
 @base_config.expansionhandler
@@ -401,15 +401,22 @@ class LogicExpansionHandler(interpreter.CallbackExpansionHandler):
     def __init__(self) -> None:
         super().__init__()
         self.add_call("not", self._not)
+        self.add_call("and", self._and)
+        self.add_call("or", self._or)
+        self.add_call("xor", self._xor)
 
-    def _not(self, context: interpreter.InterpreterContext) -> str:
-        if len(context.args) != 1:
-            raise interpreter.InterpreterError(
-                context,
-                f"not: need one and only one argument"
-            )
+    @staticmethod
+    def unary(context: interpreter.InterpreterContext, op: datatypes.UnaryNumOpT) -> str:
+        return datatypes.bool_to_str(datatypes.apply_unary_bool_op(context, op))
 
-        return datatypes.bool_to_scrolls_bool(not datatypes.scrolls_bool_to_bool(context.args[0]))
+    @staticmethod
+    def reduce(context: interpreter.InterpreterContext, op: datatypes.BinaryNumOpT) -> str:
+        return datatypes.bool_to_str(datatypes.apply_reduce_bool_op(context, op))
+
+    def _not(self, context: interpreter.InterpreterContext) -> str: return self.unary(context, operator.not_)
+    def _and(self, context: interpreter.InterpreterContext) -> str: return self.reduce(context, operator.and_)
+    def _or(self, context: interpreter.InterpreterContext) -> str: return self.reduce(context, operator.or_)
+    def _xor(self, context: interpreter.InterpreterContext) -> str: return self.reduce(context, operator.xor)
 
 
 @base_config.expansionhandler

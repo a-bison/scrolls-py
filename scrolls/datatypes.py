@@ -11,8 +11,8 @@ from . import interpreter
 __all__ = (
     "TRUE",
     "FALSE",
-    "bool_to_scrolls_bool",
-    "scrolls_bool_to_bool",
+    "bool_to_str",
+    "str_to_bool",
     "require_arg_length",
     "NumericType",
     "str_to_numeric",
@@ -21,7 +21,10 @@ __all__ = (
     "apply_unary_num_op",
     "apply_binary_num_op",
     "apply_reduce_binary_num_op",
-    "apply_mass_binary_num_op"
+    "apply_mass_binary_num_op",
+    "apply_binary_bool_op",
+    "apply_unary_bool_op",
+    "apply_reduce_bool_op"
 )
 
 
@@ -41,13 +44,16 @@ ScrollNumT = tuple[t.Union[int, float], 'NumericType']
 UnaryNumOpT = t.Callable[[NumT], NumT]
 BinaryNumOpT = t.Callable[[NumT, NumU], t.Union[NumT, NumU]]
 
+UnaryBoolOpT = t.Callable[[bool], bool]
+BinaryBoolOpT = t.Callable[[bool, bool], bool]
 
-def scrolls_bool_to_bool(x: str) -> bool:
+
+def str_to_bool(x: str) -> bool:
     # "0" is interpreted as FALSE, everything else as TRUE.
     return not x == FALSE
 
 
-def bool_to_scrolls_bool(b: bool) -> str:
+def bool_to_str(b: bool) -> str:
     return TRUE if b else FALSE
 
 
@@ -193,3 +199,37 @@ def apply_mass_binary_num_op(
         out_t = NumericType.INT
 
     return final_op(n1, n2), out_t
+
+
+def apply_unary_bool_op(
+    context: interpreter.InterpreterContext,
+    op: UnaryBoolOpT,
+    len_check: bool = False
+) -> bool:
+    if len_check:
+        require_arg_length(context, 1)
+
+    return op(str_to_bool(context.args[0]))
+
+
+def apply_binary_bool_op(
+    context: interpreter.InterpreterContext,
+    op: BinaryBoolOpT,
+    len_check: bool = False
+) -> bool:
+    if len_check:
+        require_arg_length(context, 2)
+
+    return op(str_to_bool(context.args[0]), str_to_bool(context.args[1]))
+
+
+def apply_reduce_bool_op(
+    context: interpreter.InterpreterContext,
+    op: BinaryBoolOpT,
+    len_check: bool = False
+) -> bool:
+    if len_check:
+        require_arg_length(context, 2)
+
+    result = functools.reduce(op, [str_to_bool(s) for s in context.args])
+    return result
