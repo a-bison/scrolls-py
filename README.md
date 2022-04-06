@@ -37,7 +37,7 @@ print this is an example
 do-something 10 20
 ```
 
-A command name may be any string that does not contain `$ ^ ! ( ) { } ;`. Arguments
+A command name may be any string that does not contain `$ ^ ! ( ) { } ; #`. Arguments
 are set apart by spaces. Commands may be put on the same line using semicolons:
 
 ```
@@ -68,7 +68,7 @@ print hello world
 Control calls are not keywords, but ordinary python functions that can be customized.
 The difference is that control calls take a scrolls statement as an argument, and command
 calls do not. Control call names MUST start with `!`. Other than that, the same naming
-rules apply, no `$ ! ( ) { } ;` (`!` may not appear anywhere but the start). Note that 
+rules apply, no `$ ! ( ) { } ; #` (`!` may not appear anywhere but the start). Note that 
 control calls also take their arguments in parentheses, as opposed to commands.
 
 ### Statements
@@ -98,6 +98,16 @@ Due to this definition, the following is also valid:
 
 ```
 !repeat(4) print hello world
+```
+
+### Comments
+
+Comments may be defined with the `#` character.
+
+```
+# This is a comment.
+print hello world# comments can border literals, though it doesn't look great.
+print foo bar #blah () {} comments can contain any character, and last until end of line.
 ```
 
 ### Variable Substitution
@@ -201,8 +211,8 @@ here is how to iterate over each element in a vector:
 ```
 set vector 1 2 3 4 5
 !while($(not $(vempty? $vector))) {
-  print $(vhead $vector)
-  set vector $(vtail $vector)
+  print $(vhead $vector)      # vhead returns the first item in a vector
+  set vector $(vtail $vector) # vtail returns all but the first item in a vector
 }
 ```
 Of course, this operation is common enough that a dedicated control structure is
@@ -237,7 +247,7 @@ whereas
 
 ```
 set vector 1 2 3 4 5
-!for(x in $vector) { <--- note the ^ is missing here! 
+!for(x in $vector) { # note the ^ is missing here! 
   print $x
 }
 ```
@@ -256,13 +266,9 @@ print $(shuffle $vector)
 will always print `1 2 3 4 5`, while
 ```
 set vector 1 2 3 4 5
-print $(shuffle $^vector) <--- note the added ^
+print $(shuffle $^vector) # note the added ^
 ```
 will randomize correctly.
-
-### Comments
-
-Scrolls does not currently support comments.
 
 ## API Documentation
 

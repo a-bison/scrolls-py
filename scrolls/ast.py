@@ -32,6 +32,7 @@ CLOSE_PAREN = ")"
 CONTROL_SIGIL = "!"
 EXPANSION_SIGIL = "$"
 MULTI_SIGIL = "^"
+COMMENT_SIGIL = "#"
 
 
 class TokenType(enum.Enum):
@@ -46,6 +47,7 @@ class TokenType(enum.Enum):
     STRING_LITERAL = 9
     EOF = 10
     WHITESPACE = 11
+    COMMENT = 12
 
 
 class TokenizeConsumeRestState(enum.Enum):
@@ -242,9 +244,9 @@ class Tokenizer:
         self.single_char_token_enable = en
 
         if en:
-            self.string_literal_stop = "".join([key for key in self.charmap]) + self.whitespace
+            self.string_literal_stop = "".join([key for key in self.charmap]) + self.whitespace + COMMENT_SIGIL
         else:
-            self.string_literal_stop = self.whitespace
+            self.string_literal_stop = self.whitespace + COMMENT_SIGIL
 
     def error(self, err_type: t.Type[errors.PositionalError], message: str) -> t.NoReturn:
         raise err_type(
@@ -345,6 +347,32 @@ class Tokenizer:
 
         return Token(
             TokenType.STRING_LITERAL,
+            "".join(chars),
+            line,
+            pos
+        )
+
+    def accept_comment(self) -> t.Optional[Token]:
+        char = self.get_char()
+        pos = self.current_pos
+        line = self.current_line
+        chars = []
+
+        if char != COMMENT_SIGIL:
+            return None
+
+        self.next_char()
+        while char != "\n":
+            chars.append(char)
+            self.next_char()
+
+            if self.at_eof():
+                break
+
+            char = self.get_char()
+
+        return Token(
+            TokenType.COMMENT,
             "".join(chars),
             line,
             pos
@@ -457,6 +485,7 @@ class Tokenizer:
                 tok = self.accept_any_of(
                     self.accept_eof,
                     self.accept_whitespace,
+                    self.accept_comment,
                     self.accept_single_char,
                     self.accept_string_literal_normal
                 )
@@ -467,8 +496,8 @@ class Tokenizer:
                         "Unexpectedly rejected all tokenizing functions."
                     )
 
-                # Loop until we get a non-whitespace token.
-                if tok.type != TokenType.WHITESPACE:
+                # Loop until we get a non-whitespace, non-comment token.
+                if tok.type not in [TokenType.WHITESPACE, TokenType.COMMENT]:
                     logger.debug(f"tokenize: Got token {tok.type.name}:{repr(tok.value)}")
                     self.handle_consume_rest(tok)
                     return tok
