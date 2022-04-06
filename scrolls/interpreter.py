@@ -84,7 +84,7 @@ class ScopedVarStore:
     def declare_global(self, name: str) -> None:
         self.current_scope.globals[name] = True
 
-    def search_scope(self, name: str, scopes: t.Sequence[VarScope], check_exist: bool = False) -> VarScope:
+    def search_scope(self, name: str, scopes: t.Sequence[VarScope], read_search: bool = False) -> VarScope:
         scopes = list(scopes)
         scope = scopes[-1]
 
@@ -99,21 +99,26 @@ class ScopedVarStore:
                 # If nonlocal, go to the enclosing scope.
                 continue
 
+            # Just break as soon as we step off global/nonlocal references.
             break
 
-        if check_exist:
+        if read_search:
+            # Do a little bit of extra logic for a read search. If we can't find a value in the
+            # current scope, try globals as a fallback.
             if name in scope.vars:
                 return scope
+            elif scopes and name in scopes[0].vars:
+                return scopes[0]
             else:
                 raise KeyError(name)
 
         return scope
 
     def get_scope_for_read(self, name: str) -> VarScope:
-        return self.search_scope(name, self.scopes, check_exist=True)
+        return self.search_scope(name, self.scopes, read_search=True)
 
     def get_scope_for_write(self, name: str) -> VarScope:
-        return self.search_scope(name, self.scopes, check_exist=False)
+        return self.search_scope(name, self.scopes, read_search=False)
 
     @property
     def current_scope(self) -> VarScope:
