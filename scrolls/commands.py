@@ -13,6 +13,7 @@ from . import ast, interpreter
 logger = logging.getLogger(__name__)
 
 T = t.TypeVar("T", str, int, float, bool)
+CommandCallbackT = t.Callable[[interpreter.InterpreterContext, t.Sequence[t.Any]], None]
 
 
 def rangelimit(
@@ -232,6 +233,43 @@ class Command(abc.ABC):
 
     def __call__(self, context: interpreter.InterpreterContext) -> None:
         self.invoke(context, self.convert_options(context))
+
+
+class CallbackCommand(Command):
+    """
+    A basic command that just invokes a given callback. Used for the make_callback_command decorator.
+    """
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        callback: CommandCallbackT,
+        aliases: t.Sequence[str] = (),
+        hidden: bool = False
+    ):
+        super().__init__(name, description, aliases, hidden)
+        self.callback = callback
+
+    def invoke(self, context: interpreter.InterpreterContext, args: t.Sequence[t.Any]) -> None:
+        self.callback(context, args)
+
+
+def make_callback_command(
+    name: str,
+    description: str,
+    aliases: t.Sequence[str] = (),
+    hidden: bool = False
+) -> t.Callable[[CommandCallbackT], CallbackCommand]:
+    def decorate(callback: CommandCallbackT) -> CallbackCommand:
+        return CallbackCommand(
+            name,
+            description,
+            callback,
+            aliases,
+            hidden
+        )
+
+    return decorate
 
 
 @dataclasses.dataclass
