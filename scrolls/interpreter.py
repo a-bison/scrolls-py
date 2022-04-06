@@ -3,6 +3,7 @@ import dataclasses
 import logging
 import types
 import typing as t
+import uuid
 
 from . import ast, errors
 
@@ -360,6 +361,7 @@ class CallbackCallHandler(t.Generic[T_co]):
         return self.get_callback(context.call_name)(context)
 
     def __contains__(self, command_name: str) -> bool:
+        logger.debug(f"{self.__class__.__qualname__}: __contains__({command_name})")
         return (
             command_name in self.calls or
             command_name in self.aliases
@@ -398,22 +400,28 @@ class BaseCallHandlerContainer(t.Generic[T]):
 
     def add(self, handler: CallHandler[T], name: str = "") -> None:
         if not name:
-            name = handler.__class__.__qualname__
+            name = str(uuid.uuid4())
 
-        logger.debug(f"Register call handler {name}")
+        logger.debug(f"Register call handler type {handler.__class__.__qualname__} name {name}")
         self._handlers[name] = handler
 
     def add_all(self, handlers: t.Sequence[CallHandler[T]]) -> None:
         for handler in handlers:
             self.add(handler)
 
-    def remove(self, handler: t.Union[CallHandler[T], str]) -> None:
+    def find(self, handler: t.Union[CallHandler[T], str]) -> tuple[str, CallHandler[T]]:
         if isinstance(handler, str):
-            name = handler
+            return handler, self._handlers[handler]
         else:
-            name = handler.__class__.__qualname__
+            for k, v in self._handlers.items():
+                if v is handler:
+                    return k, v
 
-        del self._handlers[name]
+            raise KeyError(repr(handler))
+
+    def remove(self, handler: t.Union[CallHandler[T], str]) -> None:
+        k, v = self.find(handler)
+        del self._handlers[k]
 
     def get(self, name: str) -> CallHandler[T]:
         return self._handlers[name]
@@ -422,6 +430,7 @@ class BaseCallHandlerContainer(t.Generic[T]):
         """
         Get the handler for a given command name.
         """
+        logger.debug(f"get_for_call: {name}")
         for handler in self._handlers.values():
             if name in handler:
                 return handler
@@ -446,10 +455,12 @@ class ChoiceCallHandlerContainer(t.Generic[T]):
         raise KeyError(name)
 
     def get_for_call(self, name: str) -> CallHandler[T]:
+        logger.debug(f"ChoiceCallHandlerContainer: get_for_call {name}")
         for container in self.containers:
             try:
                 return container.get_for_call(name)
             except KeyError:
+                logger.debug(f"fail on {container.__class__.__qualname__}")
                 pass
 
         raise KeyError(name)
