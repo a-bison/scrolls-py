@@ -194,7 +194,71 @@ for an example of this idea.
 
 #### Structures (Lists, etc.)
 
-There are no data structures, yet.
+There are no dedicated datastructures in Scrolls, however there is built in support
+for manipulating space-delimited lists of strings referred to as *vectors*. For example,
+here is how to iterate over each element in a vector:
+
+```
+set vector 1 2 3 4 5
+!while($(not $(vempty? $vector))) {
+  print $(vhead $vector)
+  set vector $(vtail $vector)
+}
+```
+Of course, this operation is common enough that a dedicated control structure is
+provided for it:
+```
+set vector 1 2 3 4 5
+!for(x in $^vector) {
+  print $x
+}
+```
+
+`$^` is the *vector expansion operator*. It will split the value of the expansion
+along spaces, and pass the pieces as separate arguments. The best way to illustrate the
+difference is with an example:
+
+```
+set vector 1 2 3 4 5
+!for(x in $^vector) {
+  print $x
+}
+```
+will print
+```
+1
+2
+3
+4
+5
+```
+
+whereas
+
+```
+set vector 1 2 3 4 5
+!for(x in $vector) { <--- note the ^ is missing here! 
+  print $x
+}
+```
+will print
+```
+1 2 3 4 5
+```
+...because the vector is being passed as a single, unsplit string. The primary use of
+this operator is to pass vectors into calls that do not understand them directly. For
+example, the `shuffle` builtin, which shuffles its arguments, but does not understand
+vectors:
+```
+set vector 1 2 3 4 5
+print $(shuffle $vector)
+```
+will always print `1 2 3 4 5`, while
+```
+set vector 1 2 3 4 5
+print $(shuffle $^vector) <--- note the added ^
+```
+will randomize correctly.
 
 ### Comments
 
