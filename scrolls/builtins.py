@@ -63,6 +63,8 @@ class BuiltinCommandHandler(interpreter.CallbackCommandHandler):
         self.add_call("unset", self.unset)
         self.add_call("stop", self.stop)
         self.add_call("return", self._return)
+        self.add_call("nonlocal", self._nonlocal)
+        self.add_call("global", self._global)
 
     def _return(self, context: interpreter.InterpreterContext) -> None:
         retval = " ".join(context.args)
@@ -92,6 +94,14 @@ class BuiltinCommandHandler(interpreter.CallbackCommandHandler):
                 context,
                 f"unset: no such variable {context.args[0]}"
             )
+
+    def _nonlocal(self, context: interpreter.InterpreterContext) -> None:
+        datatypes.require_arg_length(context, 1)
+        context.vars.declare_nonlocal(context.args[0])
+
+    def _global(self, context: interpreter.InterpreterContext) -> None:
+        datatypes.require_arg_length(context, 1)
+        context.vars.declare_global(context.args[0])
 
     def stop(self, context: interpreter.InterpreterContext) -> None:
         raise interpreter.InterpreterStop

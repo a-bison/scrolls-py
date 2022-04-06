@@ -1,0 +1,55 @@
+!def(set_global x) {
+    global g_test
+    set g_test $x
+}
+
+!def(nested_set_global x) {
+    set_global $x
+}
+
+set g_test 1
+print test set_global
+print g_test is $g_test
+set_global 2
+print g_test is now $g_test
+print
+
+set g_test 1
+print test nested_set_global
+print g_test is $g_test
+nested_set_global 2
+print g_test is now $g_test
+print
+
+!def(pop v_name) {
+    nonlocal $v_name
+    set head $(vhead $^$v_name)
+    set $v_name $(vtail $^$v_name)
+    return $head
+}
+
+set v_test 1 2 3 4 5
+print test nonlocal modification with pop
+print v_test is $v_test
+print popped $(pop v_test)
+print v_test is now $v_test
+print
+
+set nonlocal_test 1
+
+!def(nonlocal_test_outer from to) {
+    set nonlocal_test $from
+    print nonlocal_test_outer: nonlocal_test is $nonlocal_test
+    nonlocal_test_inner $to
+    print nonlocal_test_outer: nonlocal_test is now $nonlocal_test
+}
+
+!def(nonlocal_test_inner to) {
+    nonlocal nonlocal_test
+    set nonlocal_test $to
+}
+
+print global: nonlocal_test is $nonlocal_test
+nonlocal_test_outer 2 3
+print global: nonlocal_test is still $nonlocal_test
+print

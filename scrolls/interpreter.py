@@ -56,13 +56,20 @@ class CallContext:
     runtime_call: bool = False
 
 
+class VarScope:
+    def __init__(self) -> None:
+        self.vars: t.MutableMapping[str, str] = {}
+        self.nonlocals: t.MutableMapping[str, bool] = {}
+        self.globals: t.MutableMapping[str, bool] = {}
+
+
 class ScopedVarStore:
     def __init__(self) -> None:
-        self.scopes: t.MutableSequence[t.MutableMapping[str, str]] = []
+        self.scopes: t.MutableSequence[VarScope] = []
         self.new_scope()  # There should always be one scope.
 
     def new_scope(self) -> None:
-        self.scopes.append({})
+        self.scopes.append(VarScope())
 
     def destroy_scope(self) -> None:
         if len(self.scopes) == 1:
@@ -71,25 +78,63 @@ class ScopedVarStore:
 
         self.scopes.pop()
 
-    def get_scope_for(self, name: str) -> t.MutableMapping[str, str]:
-        for scope in reversed(self.scopes):
-            if name in scope:
-                return scope
+    def declare_nonlocal(self, name: str) -> None:
+        self.current_scope.nonlocals[name] = True
 
-        raise KeyError('name')
+    def declare_global(self, name: str) -> None:
+        self.current_scope.globals[name] = True
+
+    def search_scope(self, name: str, scopes: t.Sequence[VarScope], check_exist: bool = False) -> VarScope:
+        scopes = list(scopes)
+        scope = scopes[-1]
+
+        while scopes:
+            scope = scopes.pop()
+
+            if name in scope.globals:
+                # If global, immediately go to the highest scope
+                return scopes[0] if scopes else scope
+
+            if name in scope.nonlocals:
+                # If nonlocal, go to the enclosing scope.
+                continue
+
+            break
+
+        if check_exist:
+            if name in scope.vars:
+                return scope
+            else:
+                raise KeyError(name)
+
+        return scope
+
+    def get_scope_for_read(self, name: str) -> VarScope:
+        return self.search_scope(name, self.scopes, check_exist=True)
+
+    def get_scope_for_write(self, name: str) -> VarScope:
+        return self.search_scope(name, self.scopes, check_exist=False)
 
     @property
-    def current_scope(self) -> t.MutableMapping[str, str]:
+    def current_scope(self) -> VarScope:
         return self.scopes[-1]
 
     def get_var(self, name: str) -> str:
-        return self.get_scope_for(name)[name]
+        return self.get_scope_for_read(name).vars[name]
 
     def set_var(self, name: str, value: str) -> None:
-        self.current_scope[name] = value
+        try:
+            scope = self.get_scope_for_write(name)
+            scope.vars[name] = value
+        except KeyError:
+            self.current_scope.vars[name] = value
 
     def del_var(self, name: str) -> None:
-        del self.current_scope[name]
+        try:
+            scope = self.get_scope_for_write(name)
+            del scope.vars[name]
+        except KeyError:
+            del self.current_scope.vars[name]
 
 
 class InterpreterContext:
@@ -761,11 +806,10 @@ class Interpreter:
             ast.ASTNodeType.COMMAND_CALL
         )
 
-    @staticmethod
-    def interpret_variable_reference(context: InterpreterContext, node: ast.ASTNode) -> str:
+    def interpret_variable_reference(self, context: InterpreterContext, node: ast.ASTNode) -> str:
         context.current_node = node
 
-        var_name = node.str_content()
+        var_name = " ".join(self.interpret_string_or_expansion(context, node.children[0]))
         try:
             return context.get_var(var_name)
         except KeyError:
@@ -791,7 +835,7 @@ class Interpreter:
         context.current_node = node
 
         if node.type == ast.ASTNodeType.EXPANSION_VAR:
-            return self.interpret_variable_reference(context, node.children[0])
+            return self.interpret_variable_reference(context, node)
         elif node.type == ast.ASTNodeType.EXPANSION_CALL:
             return self.interpret_expansion_call(context, node)
         else:

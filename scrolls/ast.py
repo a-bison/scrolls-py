@@ -677,7 +677,11 @@ expect_command_separator = expect(TokenType.COMMAND_SEP)
 
 def parse_expansion_var(ctx: ParseContext) -> ASTNode:
     logger.debug("parse_expansion_var")
-    return parse_strtok(ctx).wrap(ASTNodeType.EXPANSION_VAR, as_child=True)
+    var_name_node = parse_eventual_string(ctx).wrap(
+        ASTNodeType.EXPANSION_VAR, as_child=True
+    )
+
+    return var_name_node
 
 
 def parse_expansion_call_args(ctx: ParseContext) -> ASTNode:
