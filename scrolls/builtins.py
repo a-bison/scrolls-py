@@ -1,4 +1,3 @@
-import functools
 import operator
 import random
 import typing as t
@@ -428,6 +427,31 @@ class StringExpansionHandler(interpreter.CallbackExpansionHandler):
         super().__init__()
         self.add_call("cat", self.concat)
         self.add_alias("concat", "cat")
+        self.add_call("vempty?", self.vempty)
+        self.add_call("vhead", self.vhead)
+        self.add_call("vtail", self.vtail)
+        self.add_call("rangev", self.rangev)
 
     def concat(self, context: interpreter.InterpreterContext) -> str:
         return "".join(context.args)
+
+    def vempty(self, context: interpreter.InterpreterContext) -> str:
+        datatypes.require_arg_length(context, 1)
+        return datatypes.bool_to_str(not bool(context.args[0]))
+
+    def vhead(self, context: interpreter.InterpreterContext) -> str:
+        datatypes.require_arg_length(context, 1)
+        return context.args[0]
+
+    def vtail(self, context: interpreter.InterpreterContext) -> str:
+        datatypes.require_arg_length(context, 1)
+        return " ".join(context.args[1:])
+
+    def rangev(self, context: interpreter.InterpreterContext) -> str:
+        datatypes.require_arg_length(context, 2)
+        (a, b, *rest), _ = datatypes.require_all_numeric(context, context.args)
+
+        a = int(a)
+        b = int(b)
+
+        return " ".join([str(x) for x in range(a, b)])
