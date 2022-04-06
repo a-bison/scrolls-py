@@ -451,11 +451,11 @@ class StringExpansionHandler(interpreter.CallbackExpansionHandler):
 
     def vhead(self, context: interpreter.InterpreterContext) -> str:
         datatypes.require_arg_length(context, 1)
-        return context.args[0]
+        return context.args[0].split(maxsplit=1)[0]
 
     def vtail(self, context: interpreter.InterpreterContext) -> str:
         datatypes.require_arg_length(context, 1)
-        return " ".join(context.args[1:])
+        return "".join(context.args[0].split(maxsplit=1)[1:])
 
     def rangev(self, context: interpreter.InterpreterContext) -> str:
         datatypes.require_arg_length(context, 2)

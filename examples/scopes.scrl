@@ -23,8 +23,8 @@ print
 
 !def(pop v_name) {
     nonlocal $v_name
-    set head $(vhead $^$v_name)
-    set $v_name $(vtail $^$v_name)
+    set head $(vhead $$v_name)
+    set $v_name $(vtail $$v_name)
     return $head
 }
 
