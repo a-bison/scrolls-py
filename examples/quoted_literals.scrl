@@ -1,0 +1,8 @@
+print "Quoted literal"
+print "preserved      whitespace"
+print "multiple   literals"    "hello    world"
+print "
+Multi
+line
+literals
+"

@@ -33,6 +33,7 @@ CONTROL_SIGIL = "!"
 EXPANSION_SIGIL = "$"
 MULTI_SIGIL = "^"
 COMMENT_SIGIL = "#"
+QUOTE = "\""
 
 
 class TokenType(enum.Enum):
@@ -195,6 +196,28 @@ class ASTNode:
             return f"ScrollASTNode({self.type.name}, {repr(self.children)})"
 
 
+def str_ensure(s: str, ensure: str) -> str:
+    if ensure not in s:
+        return s + ensure
+    else:
+        return s
+
+
+def str_remove(s: str, remove: str) -> str:
+    return s.replace(remove, "")
+
+
+def str_switch(s: str, switch: str, en: bool) -> str:
+    """
+    Utility function for enabling/disabling detection of certain characters.
+    """
+
+    if en:
+        return str_ensure(s, switch)
+    else:
+        return str_remove(s, switch)
+
+
 class Tokenizer:
     def __init__(
         self,
@@ -226,30 +249,46 @@ class Tokenizer:
         }
 
         # Set up stop chars for unquoted string literals.
-        self.string_literal_stop: t.Sequence[str] = []
+        self._string_literal_always_stop = self.whitespace + COMMENT_SIGIL
+        self._string_literal_stop_single_char = "".join(self.charmap.keys())
+        self._string_literal_stop_quoted = QUOTE
+
+        self.string_literal_stop: str = self._string_literal_always_stop
         self.single_char_token_enable = True
         self.set_single_char_token_enable(True)
 
         # Set up stop chars for CONSUME_REST.
-        self.consume_rest_stop: t.Sequence[str] = []
+        self._consume_rest_stop_switch: str = "".join(COMMAND_SEP + [BLOCK_CLOSE, BLOCK_OPEN])
+        self.consume_rest_stop: str = ""
         self.set_consume_rest_all(False)
 
+        # Set up stop chars for quoted literals.
+        self.quoted_literal_stop: str = QUOTE  # For now, quoted literals ONLY stop on another quote.
+        self.quoted_literal_enable = True
+        self.set_quoted_literals_enable(True)
+
     def set_consume_rest_all(self, consume_all: bool) -> None:
-        if not consume_all:
-            self.consume_rest_stop = [
-                "\n", ";", BLOCK_OPEN, BLOCK_CLOSE
-            ]
-        else:
-            self.consume_rest_stop = []
+        self.consume_rest_stop = str_switch(
+            self.consume_rest_stop,
+            self._consume_rest_stop_switch,
+            not consume_all
+        )
 
     def set_single_char_token_enable(self, en: bool) -> None:
         self.single_char_token_enable = en
+        self.string_literal_stop = str_switch(
+            self.string_literal_stop,
+            self._string_literal_stop_single_char,
+            en
+        )
 
-        if en:
-            self.string_literal_stop = "".join([key for key in self.charmap]) + self.whitespace + COMMENT_SIGIL
-        else:
-            # If single char tokens aren't enabled, don't stop string literals on them either, or things break.
-            self.string_literal_stop = self.whitespace + COMMENT_SIGIL
+    def set_quoted_literals_enable(self, en: bool) -> None:
+        self.quoted_literal_enable = en
+        self.string_literal_stop = str_switch(
+            self.string_literal_stop,
+            self._string_literal_stop_quoted,
+            en
+        )
 
     def error(self, err_type: t.Type[errors.PositionalError], message: str) -> t.NoReturn:
         raise err_type(
@@ -395,6 +434,34 @@ class Tokenizer:
             error_on_eof=False  # Stop on EOF. No errors.
         )
 
+    # Accept a quoted string literal.
+    def accept_string_literal_quoted(self) -> t.Optional[Token]:
+        if self.get_char() != QUOTE:
+            return None
+        else:
+            self.next_char()
+
+        literal = self.accept_string_literal(
+            stop_chars=self.quoted_literal_stop,
+            error_on_eof=True  # Quoted literals must be closed.
+        )
+
+        if literal is None:
+            self.error(
+                errors.TokenizeError,
+                "internal: Got None from accept_string_literal, shouldn't have."
+            )
+
+        if self.get_char() != QUOTE:
+            self.error(
+                errors.TokenizeError,
+                "internal: Missing end quote, should have resulted in EOF error."
+            )
+        else:
+            self.next_char()
+
+        return literal
+
     @staticmethod
     def accept_any_of(*f: t.Callable[[], t.Optional[Token]]) -> t.Optional[Token]:
         for fun in f:
@@ -490,6 +557,7 @@ class Tokenizer:
                     self.accept_whitespace,
                     self.accept_comment,
                     self.accept_single_char,
+                    self.accept_string_literal_quoted,
                     self.accept_string_literal_normal
                 )
 
