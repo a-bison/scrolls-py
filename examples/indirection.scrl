@@ -1,0 +1,31 @@
+# Swap two variables.
+!def(swap a b) {
+    nonlocal $a
+    nonlocal $b
+
+    set tmp $$a
+    set $a $$b
+    set $b $tmp
+}
+
+# Print all variables named.
+!def(printall *name_vec) {
+    !for(name in $^name_vec) {
+        nonlocal $name
+        print $name is $$name
+    }
+}
+
+set v1 first
+set v2 second
+
+!def(p) print v1 is $(cat $v1 ,) v2 is $v2
+
+print test swap
+p
+swap v1 v2
+p
+print
+
+print test printall
+printall v1
