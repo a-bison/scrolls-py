@@ -122,12 +122,7 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
 
     def _def(self, context: interpreter.InterpreterContext) -> None:
         args = context.args
-
-        if len(args) < 1:
-            raise InterruptedError(
-                context,
-
-            )
+        datatypes.require_arg_length(context, 1)
 
         command_calls = context.control_node.find_all(
             lambda node: (node.type == ast.ASTNodeType.COMMAND_CALL and

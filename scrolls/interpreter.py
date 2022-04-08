@@ -337,35 +337,74 @@ class Initializer(abc.ABC):
         return False
 
 
+@dataclasses.dataclass
+class RuntimeCall:
+    name: str
+    node: ast.ASTNode
+    params: t.Sequence[str]
+    collect_param: t.Optional[str]
+
+
 class RuntimeCallHandler(t.Generic[T_co]):
     """
     A basic call handler that maps names to AST nodes.
     """
     def __init__(self) -> None:
-        self.calls: t.MutableMapping[str, tuple[ast.ASTNode, t.Sequence[str]]] = {}
+        self.calls: t.MutableMapping[str, RuntimeCall] = {}
 
     def define(self, name: str, node: ast.ASTNode, params: t.Sequence[str]) -> None:
-        self.calls[name] = (node, params)
+        collect_param: t.Optional[str] = None
+
+        if params and params[-1].startswith("*"):
+            collect_param = params[-1][1:]
+            params = params[:-1]
+
+        call = RuntimeCall(
+            name,
+            node,
+            params,
+            collect_param
+        )
+
+        self.calls[name] = call
 
     def undefine(self, name: str) -> None:
         del self.calls[name]
 
     def handle_call(self, context: InterpreterContext) -> T_co:
-        node, params = self.calls[context.call_name]
+        call = self.calls[context.call_name]
 
-        if len(params) != len(context.args):
-            raise InterpreterError(
-                context,
-                f"{context.call_name}: Invalid number of arguments (expected {len(params)})"
-            )
+        # Arg length check
+        if call.collect_param is None:
+            if len(call.params) != len(context.args):
+                raise InterpreterError(
+                    context,
+                    f"{context.call_name}: Invalid # of arguments (expected {len(call.params)})"
+                )
+        else:
+            if len(context.args) < len(call.params) - 1:
+                raise InterpreterError(
+                    context,
+                    f"{context.call_name}: Invalid # of arguments (expected at least {len(call.params)})"
+                )
+
+        params = list(call.params)
+
+        if call.collect_param is None:
+            args = context.args
+        else:
+            params.append(call.collect_param)
+            collected = context.args[len(call.params):]
+            args = list(context.args[:len(call.params)])
+            args.append(" ".join(collected))
 
         context.vars.new_scope()
-        for param, arg in zip(params, context.args):
+        for param, arg in zip(params, args):
             context.set_var(param, arg)
 
         context.call_context.runtime_call = True
         try:
-            context.interpreter.interpret_statement(context, node)
+            context.interpreter.interpret_statement(context, call.node)
         except InterpreterReturn:
             pass
 
