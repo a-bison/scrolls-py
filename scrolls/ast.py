@@ -225,12 +225,14 @@ class Tokenizer:
             MULTI_SIGIL: TokenType.MULTI_SIGIL
         }
 
-        self.string_literal_stop = "".join([key for key in self.charmap]) + self.whitespace
-
-        self.consume_rest_stop: t.Sequence[str] = []
+        # Set up stop chars for unquoted string literals.
+        self.string_literal_stop: t.Sequence[str] = []
         self.single_char_token_enable = True
-        self.set_consume_rest_all(False)
         self.set_single_char_token_enable(True)
+
+        # Set up stop chars for CONSUME_REST.
+        self.consume_rest_stop: t.Sequence[str] = []
+        self.set_consume_rest_all(False)
 
     def set_consume_rest_all(self, consume_all: bool) -> None:
         if not consume_all:
@@ -246,6 +248,7 @@ class Tokenizer:
         if en:
             self.string_literal_stop = "".join([key for key in self.charmap]) + self.whitespace + COMMENT_SIGIL
         else:
+            # If single char tokens aren't enabled, don't stop string literals on them either, or things break.
             self.string_literal_stop = self.whitespace + COMMENT_SIGIL
 
     def error(self, err_type: t.Type[errors.PositionalError], message: str) -> t.NoReturn:
