@@ -189,18 +189,43 @@ Notable exceptions to this are:
 #### Strings
 
 Strings are the default datatype in Scrolls, and do not need to be enclosed in quotes.
-Everything is a string, including all command/expansion call names. As such the following
-is valid:
+If you need to include special characters or newlines in strings, you may use double
+quotes:
+
+```
+print "hello world (foo bar) {this is fine}"
+print "spacing      is      preserved"
+print "newlines
+are
+allowed
+too"
+```
+
+Nearly everything is a string, including all call names and variable references. As such,
+call names may be stored in variables as a primitive form of indirection:
 
 ```
 !for(operator in + - * /) {
   print $($operator 5 8) 
 }
+
+# Equivalent to...
+print $(+ 5 8)
+print $(- 5 8)
+print $(* 5 8)
+print $(/ 5 8)
 ```
 
-Expansions are interpreted as they're needed, and so they may be used to refer to
-call names, including anything built in. See [arithmetic.scrl](examples/arithmetic.scrl)
-for an example of this idea.
+See [arithmetic.scrl](examples/arithmetic.scrl) for an example of this idea. 
+
+Using quoted literals, we can make the "everything is a string" idea a bit more obvious:
+
+```
+# Does the same thing as the above example
+!"for"("operator" "in" "+" "-" "*" "/") {
+  "print" $($"operator" "5" "8")
+}
+```
 
 #### Structures (Lists, etc.)
 
