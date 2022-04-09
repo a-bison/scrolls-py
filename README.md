@@ -56,9 +56,8 @@ into some python code.
 !repeat(4) {
     print hello world
 }
-```
-equivalent to...
-```
+
+# equivalent to:
 print hello world
 print hello world
 print hello world
@@ -118,10 +117,9 @@ command call.
 ```
 set test hello world
 print $test
-```
-will print...
-```
-hello world
+
+# prints:
+# hello world
 ```
 
 There is also a built in `for` control call, which will run a code block repeatedly
@@ -131,14 +129,13 @@ with different parameters.
 !for(x in 1 2 3 4 5) {
     print $x
 }
-```
-will print...
-```
-1
-2
-3
-4
-5
+
+# prints:
+# 1
+# 2
+# 3
+# 4
+# 5
 ```
 
 ### Substitution Calls
@@ -258,42 +255,41 @@ set vector 1 2 3 4 5
 !for(x in $^vector) {
   print $x
 }
-```
-will print
-```
-1
-2
-3
-4
-5
+
+# prints:
+# 1
+# 2
+# 3
+# 4
+# 5
 ```
 
-whereas
+Contrast with removing `^`: 
 
 ```
 set vector 1 2 3 4 5
 !for(x in $vector) { # note the ^ is missing here! 
   print $x
 }
+
+# prints:
+# 1 2 3 4 5
 ```
-will print
-```
-1 2 3 4 5
-```
-...because the vector is being passed as a single, unsplit string. The primary use of
-this operator is to pass vectors into calls that do not understand them directly. For
+
+Above, the vector is being passed as a single, unsplit string. The primary use of
+the `^` operator is to pass vectors into calls that do not understand them directly. For
 example, the `shuffle` builtin, which shuffles its arguments, but does not understand
 vectors:
+
 ```
+# will always print 1 2 3 4 5
 set vector 1 2 3 4 5
-print $(shuffle $vector)
+print $(shuffle $vector) # shuffle is only taking 1 argument here
+
+# will shuffle as expected, ex 3 5 1 2 4
+print $(shuffle $^vector) # note the added ^, shuffle is taking each element
+                          # in $vector as its own argument
 ```
-will always print `1 2 3 4 5`, while
-```
-set vector 1 2 3 4 5
-print $(shuffle $^vector) # note the added ^
-```
-will randomize correctly.
 
 ## API Documentation
 
