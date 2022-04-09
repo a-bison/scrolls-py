@@ -1,11 +1,11 @@
-print Enter a number:
+print "Enter a number:"
 input n
 
 !def(even? x) return $(eq? $(% $x 2) 0)
 
 !if($(even? $n)) {
-    print $n is even.
+    print $n "is even."
     stop
 }
 
-print $n is odd.
+print $n "is odd."

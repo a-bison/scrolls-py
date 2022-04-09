@@ -1,5 +1,5 @@
 !def(hello name) {
-    print Hello, $(cat $name .)
+    print "Hello," $(cat $name ".")
 }
 
 !def(double x) {
@@ -18,10 +18,10 @@
 hello world
 set x 100
 set y 50
-print y is $y
-print x is $x
-print 5 doubled is $(double 5)
-print y is still $y
-print x is still $x
+print "y is" $y
+print "x is" $x
+print "5 doubled is" $(double 5)
+print "y is still" $y
+print "x is still" $x
 
-print Recursive functions are supported: factorial of 6 is $(factorial 6)
+print "Recursive functions are supported: factorial of 6 is" $(factorial 6)

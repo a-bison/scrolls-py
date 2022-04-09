@@ -8,17 +8,17 @@
 }
 
 set g_test 1
-print test set_global
-print g_test is $g_test
+print "test" set_global
+print "g_test is" $g_test
 set_global 2
-print g_test is now $g_test
+print "g_test is now" $g_test
 print
 
 set g_test 1
-print test nested_set_global
-print g_test is $g_test
+print "test nested_set_global"
+print "g_test is" $g_test
 nested_set_global 2
-print g_test is now $g_test
+print "g_test is now" $g_test
 print
 
 !def(pop v_name) {
@@ -29,19 +29,19 @@ print
 }
 
 set v_test 1 2 3 4 5
-print test nonlocal modification with pop
-print v_test is $v_test
-print popped $(pop v_test)
-print v_test is now $v_test
+print "test nonlocal modification with pop"
+print "v_test is" $v_test
+print "popped" $(pop v_test)
+print "v_test is now" $v_test
 print
 
 set nonlocal_test 1
 
 !def(nonlocal_test_outer from to) {
     set nonlocal_test $from
-    print nonlocal_test_outer: nonlocal_test is $nonlocal_test
+    print "nonlocal_test_outer: nonlocal_test is" $nonlocal_test
     nonlocal_test_inner $to
-    print nonlocal_test_outer: nonlocal_test is now $nonlocal_test
+    print "nonlocal_test_outer: nonlocal_test is now" $nonlocal_test
 }
 
 !def(nonlocal_test_inner to) {
@@ -49,7 +49,7 @@ set nonlocal_test 1
     set nonlocal_test $to
 }
 
-print global: nonlocal_test is $nonlocal_test
+print "global: nonlocal_test is" $nonlocal_test
 nonlocal_test_outer 2 3
-print global: nonlocal_test is still $nonlocal_test
+print "global: nonlocal_test is still" $nonlocal_test
 print

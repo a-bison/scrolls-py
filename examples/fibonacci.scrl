@@ -1,8 +1,8 @@
-print This will calculate fib N where fib 0 = 0, fib 1 = 1
-print Enter N.
+print "This will calculate fib N where fib 0 = 0, fib 1 = 1"
+print "Enter N."
 input n
 
-set output_msg Fibonacci number $n is
+set output_msg "Fibonacci number" $n "is"
 
 !if($(< $n 2)) {
     print $^output_msg $n

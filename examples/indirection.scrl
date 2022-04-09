@@ -12,20 +12,20 @@
 !def(printall *name_vec) {
     !for(name in $^name_vec) {
         nonlocal $name
-        print $name is $$name
+        print $name "is" $$name
     }
 }
 
-set v1 first
-set v2 second
+set v1 "first"
+set v2 "second"
 
-!def(p) print v1 is $(cat $v1 ,) v2 is $v2
+!def(p) print "v1 is" $(cat $v1 ,) "v2 is" $v2
 
-print test swap
+print "test swap"
 p
 swap v1 v2
 p
 print
 
-print test printall
-printall v1
+print "test printall"
+printall v1 v2

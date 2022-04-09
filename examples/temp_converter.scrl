@@ -6,32 +6,32 @@ set f_to_c 2
 set valid_option $false
 
 !while($(not $valid_option)) {
-    print Choose an option:
-    print $c_to_f - C to F
-    print $f_to_c - F to C
-    print $quit - quit
+    print "Choose an option:"
+    print $c_to_f "- C to F"
+    print $f_to_c "- F to C"
+    print $quit "- quit"
 
     input option
     !if($(eq? $option $quit)) {
-        print Quitting.
+        print "Quitting."
         stop
     }
 
     set valid_option $(in? $option $c_to_f $f_to_c)
     !if($(not $valid_option)) {
-        print Invalid option $(cat $option ,) try again.
+        print "Invalid option" $(cat $option ",") "try again."
     }
 }
 
-print Enter temperature:
+print "Enter temperature:"
 input temp
 
 !if($(eq? $option $c_to_f)) {
     set new_temp $(+ $(* $temp 1.8) 32)
-    print $(cat $temp C) in Fahrenheit is $(cat $new_temp F)
+    print $(cat $temp "C") "in Fahrenheit is" $(cat $new_temp "F")
 }
 
 !if($(eq? $option $f_to_c)) {
     set new_temp $(/ $(- $temp 32) 1.8)
-    print $(cat $temp F) in Celsius is $(cat $new_temp C)
+    print $(cat $temp "F") "in Celsius is" $(cat $new_temp "C")
 }

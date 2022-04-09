@@ -1,9 +1,9 @@
 set repeat_times 10
-set print_message Hello World
-set choices foo bar baz quux
+set print_message "Hello World"
+set choices "foo bar baz quux"
 
 print $print_message
 
 !repeat($repeat_times) {
-    print Here is a random selection: $(select $^choices)
+    print "Here is a random selection:" $(select $^choices)
 }

@@ -4,25 +4,25 @@ set float_vec 12.0 4.5 3.3333333 7
 !def(op_test vector) {
     print testing $vector
     !for(op in + - * / //) {
-        print op $op = $($op $^vector)
+        print "op" $op "=" $($op $^vector)
     }
     print
 }
 
-print int_vec
+print "int_vec"
 op_test $int_vec
 
-print float_vec
+print "float_vec"
 op_test $float_vec
 
-print test negate
-print $(cat - 47) = $(- 47)
+print "test negate"
+print $(cat - 47) "=" $(- 47)
 print
 
-print test toint
-print 3.5 to int is $(toint 3.5)
+print "test toint"
+print "3.5 to int is" $(toint 3.5)
 print
 
-print test tofloat
-print 3 to float is $(tofloat 3)
+print "test tofloat"
+print "3 to float is" $(tofloat 3)
 print

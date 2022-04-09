@@ -1,12 +1,12 @@
 !def(demo name params) {
-    print Demonstrating $(cat $name ...)
+    print "Demonstrating" $(cat $name ...)
     !repeat(10) {
         print $($name $^params)
     }
     print
 }
 
-set params a b c d
+set params "a b c d"
 demo select $params
 demo shuffle $params
 set params 0 10

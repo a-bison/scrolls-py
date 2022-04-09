@@ -1,7 +1,8 @@
 # comments.scrl
 !def(say_hello) { # end of line comment
 # ! significant chars ( ) { } in comment
-    print hello world#comment bordering literal
+    print "hello world"#comment bordering quoted literal
+    print foo bar#comment bordering literal
 }
 
 say_hello # hello!
