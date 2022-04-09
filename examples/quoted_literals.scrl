@@ -6,3 +6,9 @@ Multi
 line
 literals
 "
+
+# Demonstration, please don't actually do this:
+"print" "Everything is a string:"
+!"for"("operator" "in" "+" "-" "*" "/") {
+  "print" $($"operator" "5" "8")
+}
