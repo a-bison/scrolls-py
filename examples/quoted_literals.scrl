@@ -7,6 +7,8 @@ line
 literals
 "
 
+print "\"test escapes\"\n\ttabbed\n\tlines\nunicode is supported: \u0398hello\u0398\n"
+
 # Demonstration, please don't actually do this:
 "print" "Everything is a string:"
 !"for"("operator" "in" "+" "-" "*" "/") {

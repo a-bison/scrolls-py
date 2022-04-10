@@ -198,6 +198,13 @@ allowed
 too"
 ```
 
+In order to include characters like `"`, you can use escape sequences:
+
+```
+# prints "quoted string"
+print "\"quoted string\""
+```
+
 Nearly everything is a string, including all call names and variable references. As such,
 call names may be stored in variables as a primitive form of indirection:
 

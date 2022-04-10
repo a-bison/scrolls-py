@@ -34,6 +34,7 @@ EXPANSION_SIGIL = "$"
 MULTI_SIGIL = "^"
 COMMENT_SIGIL = "#"
 QUOTE = "\""
+ESCAPE_SIGIL = "\\"
 
 
 class TokenType(enum.Enum):
@@ -248,6 +249,18 @@ class Tokenizer:
             MULTI_SIGIL: TokenType.MULTI_SIGIL
         }
 
+        self.escape_sequences: t.MutableMapping[
+            str,
+            t.Union[str, t.Callable[[Tokenizer], str]]
+        ] = {
+            "n": "\n",
+            "t": "\t",
+            "r": "\r",
+            ESCAPE_SIGIL: ESCAPE_SIGIL,
+            QUOTE: QUOTE,
+            "u": Tokenizer._unicode_escape
+        }
+
         # Set up stop chars for unquoted string literals.
         self._string_literal_always_stop = self.whitespace + COMMENT_SIGIL
         self._string_literal_stop_single_char = "".join(self.charmap.keys())
@@ -266,6 +279,35 @@ class Tokenizer:
         self.quoted_literal_stop: str = QUOTE  # For now, quoted literals ONLY stop on another quote.
         self.quoted_literal_enable = True
         self.set_quoted_literals_enable(True)
+
+    def _unicode_escape(self) -> str:
+        code_point = ""  # Initialization not needed, just satisfies some linters.
+        try:
+            code_point = self.next_n_chars(4)
+        except errors.TokenizeEofError:
+            self.error(
+                errors.TokenizeEofError,
+                "Ran off end of script trying to parse unicode escape."
+            )
+
+        if QUOTE in code_point:
+            self.current_pos -= 4
+            self.error(
+                errors.TokenizeError,
+                f"Encountered {QUOTE} while consuming unicode escape."
+            )
+
+        char = ""
+        try:
+            char = chr(int(code_point, 16))
+        except ValueError:
+            self.current_pos -= 4
+            self.error(
+                errors.TokenizeError,
+                f"Bad hex number {code_point}."
+            )
+
+        return char
 
     def set_consume_rest_all(self, consume_all: bool) -> None:
         self.consume_rest_stop = str_switch(
@@ -301,6 +343,13 @@ class Tokenizer:
     def at_eof(self) -> bool:
         return self.char >= self.stringlen
 
+    def forbid_eof(self, msg: str = "", *args: t.Any, **kwargs: t.Any) -> None:
+        if not msg:
+            msg = "Unexpected EOF while parsing script."
+
+        if self.at_eof():
+            self.error(errors.TokenizeEofError, msg.format(*args, **kwargs))
+
     def get_char(self) -> str:
         return self.string[self.char]
 
@@ -313,6 +362,22 @@ class Tokenizer:
             self.current_pos += 1
 
         self.char += 1
+
+    def next_n_chars(self, n: int) -> str:
+        """
+        Unconditionally consume N characters and return them.
+        """
+        chars = []
+        for _ in range(n):
+            self.forbid_eof(
+                "Ran into EOF while consuming characters. Got {}, wanted {}.",
+                len(chars), n
+            )
+
+            chars.append(self.get_char())
+            self.next_char()
+
+        return "".join(chars)
 
     # Get a single char token.
     def accept_single_char(self) -> t.Optional[Token]:
@@ -357,16 +422,36 @@ class Tokenizer:
 
         return None
 
+    def try_consume_escape(self) -> t.Optional[str]:
+        if self.get_char() != ESCAPE_SIGIL:
+            return None
+
+        self.next_char()
+        self.forbid_eof()
+
+        escape_char = self.get_char()
+        if escape_char not in self.escape_sequences:
+            self.error(errors.TokenizeError, f"Invalid escape '{escape_char}'")
+
+        self.next_char()
+        self.forbid_eof()
+
+        replacement = self.escape_sequences[escape_char]
+        if isinstance(replacement, str):
+            return replacement
+        elif isinstance(replacement, t.Callable):
+            return replacement(self)
+        else:
+            raise TypeError(f"Bad type for escape sequence {escape_char}, "
+                            "must be 'str' or '(Tokenizer) -> str'")
+
     def accept_string_literal(
         self,
         stop_chars: t.Sequence[str] = (),
-        error_on_eof: bool = False
+        error_on_eof: bool = False,
+        allow_escapes: bool = False
     ) -> t.Optional[Token]:
-        if self.at_eof():
-            self.error(
-                errors.TokenizeEofError,
-                "String literal should not start on EOF"
-            )
+        self.forbid_eof("String literal should not start on EOF")
 
         char = self.get_char()
         pos = self.current_pos
@@ -374,6 +459,13 @@ class Tokenizer:
         chars = []
 
         while char not in stop_chars:
+            if allow_escapes:
+                escape = self.try_consume_escape()
+                if escape is not None:
+                    chars.append(escape)
+                    char = self.get_char()
+                    continue
+
             chars.append(char)
             self.next_char()
             if self.at_eof():
@@ -443,7 +535,8 @@ class Tokenizer:
 
         literal = self.accept_string_literal(
             stop_chars=self.quoted_literal_stop,
-            error_on_eof=True  # Quoted literals must be closed.
+            error_on_eof=True,  # Quoted literals must be closed.
+            allow_escapes=True  # Escapes only allowed in quoted literals.
         )
 
         if literal is None:
