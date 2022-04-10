@@ -1,0 +1,20 @@
+!def(divisible? a b) {
+    return $(eq? 0 $(% $a $b))
+}
+!def(fizzbuzz n) {
+    !if($(divisible? $n 15)) {
+        return "FizzBuzz"
+    }
+    !if($(divisible? $n 3)) {
+        return "Fizz"
+    }
+    !if($(divisible? $n 5)) {
+        return "Buzz"
+    }
+
+    return $n
+}
+
+!for(n in $^(rangev 1 101)) {
+    print $(fizzbuzz $n)
+}
