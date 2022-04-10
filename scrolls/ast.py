@@ -367,7 +367,7 @@ class Tokenizer:
         """
         Unconditionally consume N characters and return them.
         """
-        chars = []
+        chars: t.MutableSequence[str] = []
         for _ in range(n):
             self.forbid_eof(
                 "Ran into EOF while consuming characters. Got {}, wanted {}.",
@@ -439,7 +439,7 @@ class Tokenizer:
         replacement = self.escape_sequences[escape_char]
         if isinstance(replacement, str):
             return replacement
-        elif isinstance(replacement, t.Callable):
+        elif callable(replacement):
             return replacement(self)
         else:
             raise TypeError(f"Bad type for escape sequence {escape_char}, "
