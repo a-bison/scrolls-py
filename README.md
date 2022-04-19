@@ -7,6 +7,10 @@ Scrolls is a small interpreter originally designed to allow users of my discord 
 make custom commands. It prioritizes control over the interpreter to help prevent abuse,
 while still allowing tight integration with python code.
 
+## Links
+
+- Documentation: https://a-bison.github.io/scrolls-py-docs/
+
 ## Why?
 The two other candidates for user scripts were python and Lua. Python code is a nightmare
 to sandbox properly, and the available Lua interpreters for python didn't give me the kind
