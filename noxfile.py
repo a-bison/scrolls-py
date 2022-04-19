@@ -14,3 +14,9 @@ def mypy(session):
 def format(session):
     session.install("isort")
     session.run("isort", "scrolls")
+
+
+@nox.session(reuse_venv=True)
+def docs(session):
+    session.install("pdoc3")
+    session.run("pdoc", "--html", "scrolls", "--force", "-o", "docs")
