@@ -1,3 +1,10 @@
+"""
+Scrolls is a small, embeddable scripting engine with an emphasis on abuse prevention, designed to be used
+in bots for chat services such as Discord.
+
+.. include:: pdoc/scrolls.md
+"""
+
 from .ast import *
 from .builtins import *
 from .commands import *
