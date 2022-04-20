@@ -23,7 +23,7 @@ interpreter = scrolls.Interpreter()
 scrolls.base_config.configure(interpreter)
 
 # Configure with stdio commands like input, and print
-interpreter.command_handlers.add(scrolls.StdIoCommandHandler)
+interpreter.command_handlers.add(scrolls.StdIoCommandHandler())
 
 # Run your script.
 script = """
