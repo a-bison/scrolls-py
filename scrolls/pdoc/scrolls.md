@@ -29,11 +29,19 @@ are a few key design elements:
 
 # Language Overview
 
-Scrolls was originally designed to string together existing discord bot commands
+Scrolls was originally designed to combine existing discord bot commands
 into new ones. As such, the statement syntax was heavily based on bash/sh.
 Other influences include python, lisp, and perl.
 
-## Command Calls
+## Statements
+
+There are three types of statements in Scrolls.
+
+### Command
+```scrolls
+# syntax:
+NAME SPACE_DELIMITED_ARGUMENTS
+```
 
 Similarly to shell scripts, the most basic form of a scrolls script is just a
 sequence of commands:
@@ -54,14 +62,22 @@ do-something 10 20
 
 You can terminate lines with semicolons if you want, but this is optional.
 
-Commands are more specifically referred to as "command calls".
+### Control
+```scrolls
+# syntax:
+!NAME(SPACE_DELIMITED_ARGUMENTS) STATEMENT
+```
 
-## Control Calls
+Control structures all follow the same syntax in Scrolls. `!`, followed by the control name,
+followed by arguments, followed by a single statement. Scrolls supports a number of traditional
+control structures, including `while`, `if`, and `for`. 
+
+In Scrolls, control structures are pluggable. Adding new ones does not increase the
+complexity of syntax; they're technically function calls, not keywords.
+Because of this, some shorthand structures are provided as well, such as `repeat`:
 
 ```scrolls
-!repeat(4) {
-    print hello world
-}
+!repeat(4) print "hello world"
 
 # equivalent to:
 print hello world
@@ -70,23 +86,9 @@ print hello world
 print hello world
 ```
 
-Control calls are not keywords, but ordinary python functions that can be customized.
-The difference is that control calls take a Scrolls statement as an argument, and command
-calls do not. Control call names MUST start with `!`. Other than that, the same naming
-rules apply, no `$ ! ( ) { } ; #` (`!` may not appear anywhere but the start). Note that 
-control calls also take their arguments in parentheses, as opposed to commands.
-
-## Statements
-
-There are three types of statements in Scrolls:
-
-### Command
-```scrolls
-NAME SPACE_DELIMITED_ARGUMENTS
-```
-
 ### Block
 ```scrolls
+# syntax:
 {
     STATEMENT
     STATEMENT
@@ -94,15 +96,24 @@ NAME SPACE_DELIMITED_ARGUMENTS
 }
 ```
 
-### Control
-```scrolls
-!NAME(SPACE_DELIMITED_ARGUMENTS) STATEMENT
-```
-
-Due to this definition, the following is also valid:
+Blocks group together multiple statements into a single one. They can be placed anywhere a statement
+is expected. This is used to achieve more recognizable control structures with code blocks:
 
 ```scrolls
-!repeat(4) print hello world
+!repeat(4) {
+    print hello
+    print world
+}
+
+# equivalent to:
+print hello
+print world
+print hello
+print world
+print hello
+print world
+print hello
+print world
 ```
 
 ## Comments
@@ -112,13 +123,13 @@ Comments may be defined with the `#` character.
 ```scrolls
 # This is a comment.
 print hello world# comments can border literals, though it doesn't look great.
-print foo bar #blah () {} comments can contain any character, and last until end of line.
+print foo bar #comments! can( contain) any; character, and last until end of line.
 ```
 
 ## Variable Substitution
 
 Scrolls supports variable expansion with `$`. Variables may be set with the built-in `set`
-command call.
+command.
 
 ```scrolls
 set test hello world
@@ -144,10 +155,10 @@ with different parameters.
 # 5
 ```
 
-## Substitution Calls
+## Expansion Calls
 
-In addition to variable expansion, expansions may call into python code, in which case
-the python code will determine what the expansion is replaced with. For example,
+In addition to variable expansion, expansions may call into some code, in which case
+the code will determine what the expansion is replaced with. For example,
 `$(select hello world)` will randomly be replaced by `hello` 50% of the time, and `world` otherwise. This may
 be used to randomly select arguments to commands, or randomly select the commands
 themselves:
@@ -157,12 +168,55 @@ command $(select arg1 arg2)
 $(select command1 command2) hello world
 ```
 
-The general form of a substitution call is `$(NAME SPACE_DELIMITED_ARGUMENTS)`.
-Substitution calls and variable references may be nested indefinitely:
+The general form of an expansion call is `$(NAME SPACE_DELIMITED_ARGUMENTS)`. 
+Expansion calls and variable references may be nested indefinitely:
 
 ```scrolls
 set v test
 command $(select $(select arg1 arg2 $v) $v)
+```
+
+## Functions / Defining Commands
+
+Custom commands and substitution calls may be defined through the `def` control
+structure.
+
+**Defining a Command**
+```scrolls
+!def(commandname arg1 arg2) {
+    print $arg1
+    print $arg2
+}
+commandname hello world
+```
+
+**Defining an Expansion Call**
+```scrolls
+!def(square x) {
+    return $(* x x)
+}
+print "4 squared is" $(square 4)
+```
+
+The key difference is the presence of the `return` command. If a `def` block
+contains a `return` statement, it defines an expansion call. If not, it defines
+a new command.
+
+Note that it is currently not possible to define custom control structures with
+Scrolls code. See [Extensions](interpreter.html#extensions) for more info on how to
+define custom control structures.
+
+## Math
+
+Arithmetic and logic operators are implemented as expansion calls. This results
+in a prefix syntax that [may look familiar](https://en.wikipedia.org/wiki/Polish_notation) if
+you've ever used lisp:
+
+```scrolls
+# converts celsius to fahrenheit
+!def(c_to_f c) {
+    return $(+ $(* $c 1.8) 32)
+}
 ```
 
 ## Datatypes
@@ -304,7 +358,10 @@ print $(shuffle $^vector) # note the added ^, shuffle is taking each element
                           # in $vector as its own argument
 ```
 
-## Further Reading
+# Further Reading
 
-See `scrolls.builtins` for a reference of commands, control structures and expansions
+- See `scrolls.builtins` for a reference of commands, control structures and expansions
 included with Scrolls.
+- See the [examples directory](https://github.com/a-bison/scrolls-py/tree/master/examples)
+  for more complete examples of Scrolls code.
+- See the source code: https://github.com/a-bison/scrolls-py
