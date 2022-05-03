@@ -299,7 +299,6 @@ class InterpreterContext:
         self._call_context: t.Optional[CallContext] = None
         self._interpreter: t.Optional[Interpreter] = None
         self._vars = ScopedVarStore()
-        self._script: t.Optional[str] = None
 
         self.statement_count = 0
         """The number of statements that have been run by the interpreter so far."""
@@ -348,25 +347,6 @@ class InterpreterContext:
         - **Must** catch `InterpreterReturn` and set the return value on this exception.
         """
         return self._expansion_handlers
-
-    @property
-    def script(self) -> str:
-        """
-        The script being executed.
-
-        Raises:
-            InternalInterpreterError: If the script is not initialized.
-        """
-        if self._script is None:
-            raise InternalInterpreterError(
-                self, "Script is not initialized."
-            )
-
-        return self._script
-
-    @script.setter
-    def script(self, s: str) -> None:
-        self._script = s
 
     @property
     def interpreter(self) -> 'Interpreter':
@@ -910,7 +890,7 @@ class InterpreterError(errors.PositionalError):
             super().__init__(
                 tok.line,
                 tok.position,
-                self.ctx.script,
+                tok.tokenizer.stream.history(),
                 message
             )
         else:
@@ -1069,47 +1049,94 @@ class Interpreter:
         tree = ast.parse_scroll(tokenizer)
         return self.interpret_ast(tree, context)
 
+    def init_context(self, context: InterpreterContext) -> None:
+        """
+        Initialize a context for this interpreter.
+        """
+        context.interpreter = self
+        self.apply_initializers(context)
+
     def run_statement(
         self,
         statement: str,
         context: t.Optional[InterpreterContext] = None,
-        consume_rest_triggers: t.Mapping[str, int] = types.MappingProxyType({}),
-        consume_rest_consumes_all: bool = False,
-        single_char_token_enable: bool = True
+        tokenizer: t.Optional[ast.Tokenizer] = None
     ) -> InterpreterContext:
-        """Run a single Scrolls statement. Intended for use in implementing a REPL.
+        """Run a single Scrolls statement.
 
         Args:
             statement: The statement to run. Must be a single syntatically valid Scrolls statement.
             context: Optional. If no context is specified, then an instance of `Interpreter.context_cls` is created
                 automatically. Otherwise, the passed context object will be used.
-            consume_rest_triggers: A mapping of triggers for the CONSUME_REST parsing feature.
-            consume_rest_consumes_all: Set whether consume_rest consumes until the end of the statement. See
-                `scrolls.ast.Tokenizer.set_consume_rest_all`
-            single_char_token_enable: Set whether special characters are enabled. See
-                `scrolls.ast.Tokenizer.set_single_char_token_enable`
+            tokenizer: Optional. If no tokenizer is specified, a new one will be created.
+                Use this option if you want to maintain tokenizer state between
+                uses of this function.
 
         Returns:
             The context used to execute the script. If `context` was not None, `context` will be returned. Otherwise,
             it will be the automatically created `InterpreterContext` instance.
         """
         # Set up parsing and parse statement
-        tokenizer = ast.Tokenizer(statement, consume_rest_triggers)
-        tokenizer.set_consume_rest_all(consume_rest_consumes_all)
-        tokenizer.set_single_char_token_enable(single_char_token_enable)
-        parse_ctx = ast.ParseContext(tokenizer)
-        statement_node = ast.parse_statement(parse_ctx)
+        if tokenizer is None:
+            tokenizer = ast.Tokenizer(statement)
+
+        statement_node = ast.parse_statement(tokenizer)
 
         # Interpret statement
         if context is None:
             context = self.context_cls(statement_node)
 
-        context.interpreter = self
-        context.script = statement
-
+        self.init_context(context)
         self.interpret_statement(context, statement_node)
 
         return context
+
+    def repl(
+        self,
+        on_error: t.Optional[t.Callable[[errors.ScrollError], None]] = None
+    ) -> None:
+        """
+        Drop into a REPL (read eval print loop).
+
+        Args:
+            on_error: A function to call when an error occurs. If `None`,
+                      errors will stop the REPL.
+        """
+        stream = ast.REPLStream()
+        tokenizer = ast.Tokenizer(stream)
+        context = self.context_cls()
+        self.init_context(context)
+
+        while True:
+            try:
+                statement_node = ast.parse_statement(tokenizer)
+                stream.set_statement()
+
+                self.interpret_statement(context, statement_node)
+            except InterpreterStop:
+                return
+            except InterpreterReturn:
+                e = InterpreterError(
+                    context,
+                    f"returning only allowed in functions"
+                )
+                if on_error is not None:
+                    on_error(e)
+                    stream.set_statement()
+                    stream.next_line()
+                else:
+                    raise e
+            except KeyboardInterrupt:
+                print("Keyboard interrupt.")
+                return
+            except errors.ScrollError as e:
+                if on_error is not None:
+                    on_error(e)
+                    stream.set_statement()
+                    stream.next_line()
+                else:
+                    raise
+
 
     @staticmethod
     def test_parse(
@@ -1148,7 +1175,6 @@ class Interpreter:
             context = self.context_cls(tree.root)
 
         context.interpreter = self
-        context.script = tree.script
         self.apply_initializers(context)
 
         try:

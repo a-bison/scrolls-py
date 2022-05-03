@@ -29,8 +29,32 @@ Also, I just kinda wanted to try making an interpreted language...
 - Integrate tightly with the parent python application.
 - Keep the syntax as simple as possible.
 
-## Quick Usage Example
+## Getting Started
 
+Check out the [Links](#Links) section above.
+
+### Command Line Usage
+
+The module comes with a built-in interpreter that may be invoked by executing the
+module.
+
+```
+$ python -m scrolls FILE 
+```
+
+Try running some of the examples:
+```
+$ python -m scrolls ./examples/arithmetic.scrl
+```
+
+If no file is specified, the interpreter will run in interactive mode:
+```
+$ python -m scrolls
+```
+
+### Programmatic Usage
+
+Scrolls may be embedded into any python program:
 ```py
 import scrolls
 
