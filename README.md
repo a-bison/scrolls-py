@@ -33,23 +33,38 @@ Also, I just kinda wanted to try making an interpreted language...
 
 Check out the [Links](#Links) section above.
 
+### Installing
+
+Currently, Scrolls is not published on PyPI. It may be installed through pip from
+the github repository:
+
+**Linux**
+```
+$ python3 -m pip install git+https://github.com/a-bison/scrolls-py@master
+```
+
+**Windows**
+```
+> py -3 -m pip install git+https://github.com/a-bison/scrolls-py@master
+```
+
 ### Command Line Usage
 
 The module comes with a built-in interpreter that may be invoked by executing the
-module.
+module. (Note that the linux version will be used from now on.)
 
 ```
-$ python -m scrolls FILE 
+$ python3 -m scrolls FILE 
 ```
 
 Try running some of the examples:
 ```
-$ python -m scrolls ./examples/arithmetic.scrl
+$ python3 -m scrolls ./examples/arithmetic.scrl
 ```
 
 If no file is specified, the interpreter will run in interactive mode:
 ```
-$ python -m scrolls
+$ python3 -m scrolls
 ```
 
 ### Programmatic Usage
