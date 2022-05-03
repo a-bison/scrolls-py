@@ -1058,27 +1058,26 @@ class Interpreter:
 
     def run_statement(
         self,
-        statement: str,
+        statement: t.Union[str, ast.Tokenizer],
         context: t.Optional[InterpreterContext] = None,
-        tokenizer: t.Optional[ast.Tokenizer] = None
     ) -> InterpreterContext:
         """Run a single Scrolls statement.
 
         Args:
-            statement: The statement to run. Must be a single syntatically valid Scrolls statement.
+            statement: The statement to run. Must be either a string, or a tokenizer populated with a valid Scrolls
+                statement.
             context: Optional. If no context is specified, then an instance of `Interpreter.context_cls` is created
                 automatically. Otherwise, the passed context object will be used.
-            tokenizer: Optional. If no tokenizer is specified, a new one will be created.
-                Use this option if you want to maintain tokenizer state between
-                uses of this function.
 
         Returns:
             The context used to execute the script. If `context` was not None, `context` will be returned. Otherwise,
             it will be the automatically created `InterpreterContext` instance.
         """
         # Set up parsing and parse statement
-        if tokenizer is None:
+        if isinstance(statement, str):
             tokenizer = ast.Tokenizer(statement)
+        else:
+            tokenizer = statement
 
         statement_node = ast.parse_statement(tokenizer)
 
