@@ -16,7 +16,7 @@ print "float_vec"
 op_test $float_vec
 
 print "test negate"
-print $(cat - 47) "=" $(- 47)
+print "(- 47) =" $(- 47)
 print
 
 print "test toint"
