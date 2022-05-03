@@ -280,7 +280,7 @@ print $(* 5 8)
 print $(/ 5 8)
 ```
 
-See [arithmetic.scrl](examples/arithmetic.scrl) for an example of this idea. 
+See [arithmetic.scrl](https://github.com/a-bison/scrolls-py/tree/master/examples/arithmetic.scrl) for an example of this idea. 
 
 Using quoted literals, we can make the "everything is a string" idea a bit more obvious:
 
