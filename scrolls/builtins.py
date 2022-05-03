@@ -651,6 +651,7 @@ class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
         self.add_call("eq?", self.equals)
         self.add_alias("==", "eq?")
         self.add_call("neq?", self.not_equals)
+        self.add_call("===", self.str_equals)
         self.add_call(">", self.gt)
         self.add_call("<", self.lt)
         self.add_call(">=", self.gte)
@@ -683,12 +684,38 @@ class ComparisonExpansionHandler(interpreter.CallbackExpansionHandler):
 
         return a, b
 
+    def str_equals(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Implements `===`. Takes only two arguments.
+
+        `===` is the strong comparison operator. It only operates on strings,
+        and no implicit conversion is done.
+
+        Contrast with the behavior of `ComparisonExpansionHandler.equals`.
+
+        **Usage**
+        ```scrolls
+        print $(=== 0123 123) # prints 0
+        print $(=== hello hello) # prints 0
+        ```
+        """
+        args = context.args
+        if len(args) != 2:
+            raise interpreter.InterpreterError(
+                context,
+                f"{context.call_name}: must have exactly 2 args"
+            )
+
+        return datatypes.bool_to_str(args[0] == args[1])
+
     def equals(self, context: interpreter.InterpreterContext) -> str:
         """
         Implements `==`, or `eq?`. Takes only two arguments.
 
         `==` is a weak comparison operator. If both arguments can be interpreted numerically, they will be converted
         to numbers before testing for equivalence. Otherwise, `==` just tests if the strings passed are equal.
+
+        Contrast with the behavior of `ComparisonExpansionHandler.str_equals`.
 
         **Usage**
         ```scrolls
