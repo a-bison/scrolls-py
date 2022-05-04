@@ -982,6 +982,10 @@ class StringExpansionHandler(interpreter.CallbackExpansionHandler):
         super().__init__()
         self.add_call("cat", self.concat)
         self.add_alias("concat", "cat")
+        self.add_call("getc", self.getc)
+        self.add_call("len", self.len)
+        self.add_call("ord", self.ord)
+        self.add_call("chr", self.chr)
         self.add_call("vempty?", self.vempty)
         self.add_call("vhead", self.vhead)
         self.add_call("vtail", self.vtail)
@@ -999,6 +1003,58 @@ class StringExpansionHandler(interpreter.CallbackExpansionHandler):
         ```
         """
         return "".join(context.args)
+
+    def getc(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Implements `getc`. Gets a single character from a string, starting at 0.
+
+        **Usage**
+        ```scrolls
+        set example "Hello"
+        print $(getc $example 4) # prints 'o'
+        ```
+        """
+        datatypes.require_arg_length(context, 2)
+        n = int(datatypes.require_numeric(context, context.args[1])[0])
+
+        return context.args[0][n]
+
+    def len(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Implements `len`. Gets the length of the passed string.
+
+        **Usage**
+        ```scrolls
+        print $(len "hello") # prints 5
+        ```
+        """
+        datatypes.require_arg_length(context, 1)
+        return str(len(context.args[0]))
+
+    def ord(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Implements `ord`. Converts a single character to its integer equivalent.
+
+        **Usage**
+        ```scrolls
+        print $(ord "h") # prints 104
+        ```
+        """
+        datatypes.require_arg_length(context, 1)
+        return str(ord(context.args[0]))
+
+    def chr(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Implements `chr`. Converts a number into the character it corresponds to.
+
+        **Usage**
+        ```scrolls
+        print $(chr 104) # prints h
+        ```
+        """
+        datatypes.require_arg_length(context, 1)
+        c = int(datatypes.require_numeric(context, context.args[0])[0])
+        return chr(c)
 
     def vempty(self, context: interpreter.InterpreterContext) -> str:
         """
