@@ -7,6 +7,7 @@ The interpreter implementation.
 import abc
 import dataclasses
 import logging
+import pathlib
 import types
 import typing as t
 import uuid
@@ -307,6 +308,9 @@ class InterpreterContext:
         self._command_handlers: BaseCallHandlerContainer[None] = BaseCallHandlerContainer()
         self._expansion_handlers: BaseCallHandlerContainer[str] = BaseCallHandlerContainer()
 
+        self._open_files: t.MutableMapping[int, t.IO[str]] = {}
+        self._fid = 0
+
     @property
     def vars(self) -> ScopedVarStore:
         """The variable store."""
@@ -323,6 +327,65 @@ class InterpreterContext:
     def get_var(self, name: str) -> str:
         """Get a variable."""
         return self.vars.get_var(name)
+
+    def open_file(self, path: str, mode: str) -> int:
+        """
+        Opens a file for this context.
+
+        Returns:
+             A numeric file ID that should be used in other `*_file` functions
+             for `InterpreterContext`.
+        """
+        p = pathlib.Path(path)
+
+        if not p.exists():
+            raise InterpreterError(
+                self,
+                f"{path} does not exist"
+            )
+
+        if not p.is_file():
+            raise InterpreterError(
+                self,
+                f"{path} is not a file"
+            )
+
+        # do not allow binary mode for now
+        mode = mode.replace("b", "")
+
+        f = open(p, mode)
+        self._open_files[self._fid] = f
+        used_fid = self._fid
+        self._fid += 1
+
+        logger.debug(f"Opened file: {path}")
+
+        return used_fid
+
+    def close_file(self, fid: int) -> None:
+        """
+        Closes a file for this context.
+        """
+        if fid not in self._open_files:
+            raise InterpreterError(
+                self,
+                f"file already closed, or not open (fid {fid})"
+            )
+
+        self._open_files[fid].close()
+        del self._open_files[fid]
+
+    def get_file(self, fid: int) -> t.IO[str]:
+        """
+        Gets an open file for this context.
+        """
+        if fid not in self._open_files:
+            raise InterpreterError(
+                self,
+                f"file already closed, or not open (fid {fid})"
+            )
+
+        return self._open_files[fid]
 
     @property
     def runtime_commands(self) -> 'BaseCallHandlerContainer[None]':

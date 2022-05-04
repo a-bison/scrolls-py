@@ -2,7 +2,6 @@ import argparse
 import logging
 import pathlib
 import sys
-import typing as t
 
 import scrolls
 
@@ -43,6 +42,7 @@ def main() -> None:
 
     interpreter = scrolls.Interpreter()
     scrolls.base_config.configure(interpreter)
+    scrolls.file_config.configure(interpreter)
     interpreter.command_handlers.add(scrolls.StdIoCommandHandler())
     interpreter.expansion_handlers.add(scrolls.RandomExpansionHandler())
 

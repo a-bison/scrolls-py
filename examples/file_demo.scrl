@@ -1,0 +1,4 @@
+# quick demo of file handling by printing this script's source code.
+set f $(file-open file_demo.scrl)
+print $(file-read $f)
+file-close $f

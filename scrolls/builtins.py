@@ -20,7 +20,8 @@ __all__ = (
     "LogicExpansionHandler",
     "StringExpansionHandler",
     "BuiltinInitializer",
-    "base_config"
+    "base_config",
+    "file_config"
 )
 
 base_config: containers.DecoratorInterpreterConfig = containers.DecoratorInterpreterConfig()
@@ -40,6 +41,14 @@ A configuration object containing the Scrolls base language. This currently cons
     `StdIoCommandHandler`.
 """
 
+file_config: containers.DecoratorInterpreterConfig = containers.DecoratorInterpreterConfig()
+"""
+A configuration object containing base Scrolls utilities for working with files.
+Consists of:
+
+- `FileExpansionHandler`
+- `FileCommandHandler`
+"""
 
 class StdIoCommandHandler(interpreter.CallbackCommandHandler):
     """
@@ -80,6 +89,85 @@ class StdIoCommandHandler(interpreter.CallbackCommandHandler):
 
         result = input()
         context.set_var(context.args[0], result)
+
+
+@file_config.commandhandler
+class FileCommandHandler(interpreter.CallbackCommandHandler):
+    """
+    Defines commands for working with files.
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self.add_call("file-close", self.close)
+
+    def close(self, context: interpreter.InterpreterContext) -> None:
+        """
+        Implements `file-close`. If you're looking for `file-open`, see
+        `FileExpansionHandler.open`.
+
+        **Usage**
+        ```scrolls
+        set f $(file-open file w)
+        # do things to file...
+        file-close $f
+        ```
+        """
+        datatypes.require_arg_length(context, 1)
+        fid, _ = datatypes.require_numeric(context, context.args[0])
+        context.close_file(int(fid))
+
+
+@file_config.expansionhandler
+class FileExpansionHandler(interpreter.CallbackExpansionHandler):
+    """
+    Defines expansions for working with files.
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self.add_call("file-open", self.open)
+        self.add_call("file-read", self.read)
+
+    def open(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Implements `file-open`. If you're looking for `file-close`, see
+        `FileCommandHandler.close`.
+
+        `file-open` returns an integer ID used as a handle to the file.
+        This ID should be saved and used for all `file-*` functions.
+
+        **Usage**
+        ```scrolls
+        set f $(file-open file w)
+        # do things to file...
+        file-close $f
+        ```
+        """
+        datatypes.require_arg_length(context, 1)
+
+        if len(context.args) > 1:
+            mode = context.args[1]
+        else:
+            # default is read
+            mode = "r"
+
+        return str(context.open_file(context.args[0], mode))
+
+    def read(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Implements `file-read`. Reads an entire file and returns a string.
+
+        **Usage**
+        ```scrolls
+        set f $(file-open file w)
+        print $(file-read $f)
+        file-close $f
+        ```
+        """
+        datatypes.require_arg_length(context, 1)
+        fid, _ = datatypes.require_numeric(context, context.args[0])
+
+        f = context.get_file(int(fid))
+        return f.read()
 
 
 @base_config.initializer
