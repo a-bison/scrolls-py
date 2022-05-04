@@ -1,0 +1,142 @@
+# Brainfuck interpreter written in scrolls, because funny (also proves Turing completeness)
+
+set loopstack
+set tape-ptr 0 # tape pointer
+set pc 0       # program counter
+
+!def(stack-push varname x) {
+    nonlocal $varname
+    set $varname $x $$varname
+}
+
+!def(stack-pop varname) {
+    nonlocal $varname
+    set head $(vhead $$varname)
+    set $varname $(vtail $$varname)
+    return $head
+}
+
+!def(stack-pop-cmd varname) {
+    nonlocal $varname
+    set _ $(stack-pop $varname)
+}
+
+# Scrolls doesn't currently support arrays very well, so we're doing something
+# really, really stupid
+!def(tape-name ptr) return $(cat tape $ptr)
+
+!def(tape-init n) {
+    set i 0
+    !while($(< $i $n)) {
+        tape-set $i 0
+        set i $(+ $i 1)
+    }
+}
+
+!def(tape-set ptr x) {
+    set tapename $(tape-name $ptr)
+    global $tapename
+    set $tapename $x
+}
+
+!def(tape-add ptr x) {
+    set tapename $(tape-name $ptr)
+    global $tapename
+    set $tapename $(+ $x $$tapename)
+}
+
+!def(tape-get ptr) {
+    set tapename $(tape-name $ptr)
+    global $tapename
+    return $$tapename
+}
+
+# carry out a brainfuck instruction
+!def(do-instruction i) {
+    global tape-ptr
+    global loopstack
+    global pc
+
+    !if($(eq? $i >)) {
+        set tape-ptr $(+ $tape-ptr 1)
+    }
+    !if($(eq? $i <)) {
+        set tape-ptr $(- $tape-ptr 1)
+    }
+    !if($(eq? $i +)) {
+        tape-add $tape-ptr 1
+    }
+    !if($(eq? $i -)) {
+        tape-add $tape-ptr -1
+    }
+    !if($(eq? $i .)) {
+        print $(chr $(tape-get $tape-ptr))
+    }
+    !if($(eq? $i ,)) {
+        input in
+        !if($(> $(len $in) 1)) set in $(getc $in 0)
+        tape-set $tape-ptr $(ord $in)
+    }
+    !if($(eq? $i [)) {
+        set x $(tape-get $tape-ptr)
+        # If not zero, just push to the global loop stack and keep going
+        !if($(neq? $x 0)) {
+            stack-push loopstack $pc
+        }
+
+        # Otherwise, we need to skip forward to the next matching ]
+        !if($(eq? $x 0)) {
+            set tmpstack
+            stack-push tmpstack 1
+            set pc $(+ $pc 1)
+            !while($(not $(vempty? $tmpstack))) {
+                set c $(getc $script $pc)
+                !if($(eq? $c [)) stack-push tmpstack 1
+                !if($(eq? $c ])) stack-pop-cmd tmpstack
+                set pc $(+ $pc 1)
+            }
+
+            # once done, backtrack one step in order to place ourselves right on
+            # the matching ]
+            set pc $(- $pc 1)
+        }
+    }
+    !if($(eq? $i ])) {
+        set x $(tape-get $tape-ptr)
+
+        # If 0, loop is done, so pop pc and continue
+        !if($(eq? $x 0)) {
+            stack-pop-cmd loopstack
+        }
+
+        # Otherwise, just peek at the top of the stack and jump to the matching [
+        !if($(neq? $x 0)) {
+            set pc $(vhead $loopstack)
+        }
+    }
+    # Nonstandard, debug opcode.
+    !if($(eq? $i "!")) {
+        print tape-ptr $tape-ptr
+        print pc $pc
+        print tape:
+        !for(x in $^(rangev 0 9)) {
+            print $(tape-get $x)
+        }
+        print ...
+    }
+}
+
+print "Please enter a path to a brainfuck script: "
+input path
+set f $(file-open $path)
+set script $(file-read $f)
+set scriptlen $(len $script)
+file-close $f
+
+tape-init 100
+
+!while($(< $pc $scriptlen)) {
+    set ins $(getc $script $pc)
+    do-instruction $ins
+    set pc $(+ $pc 1)
+}
