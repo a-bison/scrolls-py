@@ -59,6 +59,7 @@ class StdIoCommandHandler(interpreter.CallbackCommandHandler):
     def __init__(self) -> None:
         super().__init__()
         self.add_call("print", self.print)
+        self.add_call("write", self.write)
         self.add_call("input", self.input)
 
     def print(self, context: interpreter.InterpreterContext) -> None:
@@ -71,6 +72,19 @@ class StdIoCommandHandler(interpreter.CallbackCommandHandler):
         ```
         """
         print(" ".join(context.args))
+
+    def write(self, context: interpreter.InterpreterContext) -> None:
+        """
+        Implements the `write` command. Prints all arguments passed to it, joined
+        by spaces. The difference vs. `print` is that `print` appends a newline,
+        while `write` does not.
+
+        **Usage**
+        ```scrolls
+        write hello world foo bar
+        ```
+        """
+        print(" ".join(context.args), end="")
 
     def input(self, context: interpreter.InterpreterContext) -> None:
         """

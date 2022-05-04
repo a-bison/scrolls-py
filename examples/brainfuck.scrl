@@ -70,7 +70,7 @@ set pc 0       # program counter
         tape-add $tape-ptr -1
     }
     !if($(eq? $i .)) {
-        print $(chr $(tape-get $tape-ptr))
+        write $(chr $(tape-get $tape-ptr))
     }
     !if($(eq? $i ,)) {
         input in
