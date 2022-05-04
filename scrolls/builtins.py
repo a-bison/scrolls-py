@@ -20,6 +20,8 @@ __all__ = (
     "LogicExpansionHandler",
     "StringExpansionHandler",
     "BuiltinInitializer",
+    "FileCommandHandler",
+    "FileExpansionHandler",
     "base_config",
     "file_config"
 )
