@@ -100,4 +100,4 @@ interpreter.run(script)
 ## Acknowledgements
 
 - [hikari-lightbulb](https://github.com/tandemdude/hikari-lightbulb) by tandemdude, which inspired the
-  CallBase extension (see [here](scrolls/ext/callbase.py)).
+  CallBase extension (see [here](https://github.com/a-bison/scrolls-py/blob/cde0f5b9a88925541cc85c00a4a0e459f54a4f56/scrolls/ext/callbase.py)).
