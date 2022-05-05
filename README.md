@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="media/scrolls-logo.png" width="200"/>
+  <img src="https://raw.githubusercontent.com/a-bison/scrolls-py/0095423d692bb18d6b3f01125f32ddad710015d9/media/scrolls-logo.png" width="200"/>
 </p>
 
 <h1 align="center">Scrolls</h1>
