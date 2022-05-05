@@ -99,5 +99,5 @@ interpreter.run(script)
 
 ## Acknowledgements
 
-- [hikari-lightbulb](https://github.com/tandemdude/hikari-lightbulb) by tandemdude, which inspired the default commands interface 
-  for Scrolls (see [here](scrolls/commands.py)).
+- [hikari-lightbulb](https://github.com/tandemdude/hikari-lightbulb) by tandemdude, which inspired the
+  CallBase extension (see [here](scrolls/ext/callbase.py)).
