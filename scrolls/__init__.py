@@ -7,7 +7,6 @@ in bots for chat services such as Discord.
 
 from .ast import *
 from .builtins import *
-from .commands import *
 from .containers import *
 from .errors import *
 from .interpreter import *
