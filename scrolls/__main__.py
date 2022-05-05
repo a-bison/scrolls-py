@@ -64,7 +64,7 @@ def main() -> None:
             scrolls_error(e)
             sys.exit(1)
     else:
-        print("Scrolls (interactive mode)")
+        print(f"Scrolls v{scrolls.__version__} (interactive mode)")
         print("Type \"stop\" to quit.")
         interpreter.repl(on_error=scrolls_error)
 
