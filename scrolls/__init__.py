@@ -10,3 +10,5 @@ from .builtins import *
 from .containers import *
 from .errors import *
 from .interpreter import *
+
+__version__ = "0.1.0"
