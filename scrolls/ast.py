@@ -1532,8 +1532,7 @@ def parse_scroll(tokenizer: Tokenizer) -> AST:
 
 def parse_statement(tokenizer: Tokenizer) -> ASTNode:
     """
-    Parse a single statement from a `Tokenizer`. Note that additional statements
-    may be added to the `Tokenizer` by using `Tokenizer.feed`.
+    Parse a single statement from a `Tokenizer`.
     """
     ctx = ParseContext(tokenizer)
     return _parse_statement(ctx)
