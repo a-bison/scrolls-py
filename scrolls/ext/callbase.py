@@ -323,7 +323,7 @@ class CallBase(abc.ABC, t.Generic[T_co]):
                     f"{option.name}: {e}"
                 )
 
-            if len(_result) == 1:
+            if len(_result) == 1 and option.modifier != OptionModifier.GREEDY:
                 result = _result[0]
             else:
                 result = _result
