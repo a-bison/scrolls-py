@@ -300,7 +300,10 @@ class CallBase(abc.ABC, t.Generic[T_co]):
         idx = 0
 
         for option in self.options:
-            if nodes:
+            if idx in nodes:
+                # Update current_node for error reporting purposes, but only if idx is pointing to
+                # a valid node. idx may be greater than the max if we're consuming a non-required
+                # option the user didn't specify.
                 context.current_node = nodes[idx]
 
             try:
