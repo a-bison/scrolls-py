@@ -956,6 +956,9 @@ class Tokenizer:
 
     # Accept a quoted string literal.
     def accept_string_literal_quoted(self) -> t.Optional[Token]:
+        if not self.quoted_literal_enable:
+            return None
+
         if self.stream.get_char() != QUOTE:
             return None
         else:
