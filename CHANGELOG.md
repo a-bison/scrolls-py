@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 - The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+**Beta Release** - `0.x.y` should not be considered stable, and backwards
+incompatible changes may be made at any time.
+
+### ADDED
+- Add `scrolls.Tokenizer.set_comments_enable`.
+
+### FIXED
+- Fix `scrolls.Tokenizer.set_quoted_literals_enable` not disabling
+  quoted literals when called with `False`.
+
 ## [0.1.1]
 **Beta Release** - `0.x.y` should not be considered stable, and backwards
 incompatible changes may be made at any time.

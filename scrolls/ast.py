@@ -660,9 +660,10 @@ class Tokenizer:
         }
 
         # Set up stop chars for unquoted string literals.
-        self._string_literal_always_stop = self.whitespace + COMMENT_SIGIL
+        self._string_literal_always_stop = self.whitespace
         self._string_literal_stop_single_char = "".join(self.charmap.keys())
         self._string_literal_stop_quoted = QUOTE
+        self._string_literal_stop_comment = COMMENT_SIGIL
 
         self.string_literal_stop: str = self._string_literal_always_stop
         self.single_char_token_enable = True
@@ -677,6 +678,11 @@ class Tokenizer:
         self.quoted_literal_stop: str = QUOTE  # For now, quoted literals ONLY stop on another quote.
         self.quoted_literal_enable = True
         self.set_quoted_literals_enable(True)
+
+        # Set up stop chars for comments. (Note: No need for specific comment stop char here, it's hardcoded to
+        # be \n at the moment.)
+        self.comments_enable = True
+        self.set_comments_enable(True)
 
     def _unicode_escape(self) -> str:
         code_point = ""  # Initialization not needed, just satisfies some linters.
@@ -747,6 +753,18 @@ class Tokenizer:
         self.string_literal_stop = str_switch(
             self.string_literal_stop,
             self._string_literal_stop_quoted,
+            en
+        )
+
+    def set_comments_enable(self, en: bool) -> None:
+        """
+        Set whether comments are enabled. If disabled, the comment character will be ignored, and anything that
+        would be a comment will be treated as ordinary code.
+        """
+        self.comments_enable = en
+        self.string_literal_stop = str_switch(
+            self.string_literal_stop,
+            self._string_literal_stop_comment,
             en
         )
 
@@ -914,6 +932,9 @@ class Tokenizer:
         )
 
     def accept_comment(self) -> t.Optional[Token]:
+        if not self.comments_enable:
+            return None
+
         char = self.stream.get_char()
         pos = self.stream.current_pos()
         line = self.stream.current_line()
