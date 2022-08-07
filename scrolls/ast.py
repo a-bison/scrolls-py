@@ -661,9 +661,15 @@ class Tokenizer:
 
         # Set up stop chars for unquoted string literals.
         self._string_literal_always_stop = self.whitespace
-        self._string_literal_stop_single_char = "".join(self.charmap.keys())
         self._string_literal_stop_quoted = QUOTE
         self._string_literal_stop_comment = COMMENT_SIGIL
+
+        # Note: Add an exception for newlines. Even when we don't consider newlines to be command separators,
+        # we would normally want newlines to separate string literals. So remove \n from this switch.
+        self._string_literal_stop_single_char = str_remove(
+            "".join(self.charmap.keys()),
+            "\n"
+        )
 
         self.string_literal_stop: str = self._string_literal_always_stop
         self.single_char_token_enable = True
@@ -683,6 +689,9 @@ class Tokenizer:
         # be \n at the moment.)
         self.comments_enable = True
         self.set_comments_enable(True)
+
+        # Override flag for behavior when single_char_token_enable is False.
+        self.newlines_separate_strings = True
 
     def _unicode_escape(self) -> str:
         code_point = ""  # Initialization not needed, just satisfies some linters.
@@ -735,12 +744,21 @@ class Tokenizer:
         If `False`, then all special characters that would otherwise be their own token will be rolled
         into string literals.
         """
+        if self.newlines_separate_strings and en:
+            # If we're re-enabling single char tokens and the newline separator behavior is still on,
+            # we need to undo that first.
+            self.set_newlines_separate_strings(False)
+
         self.single_char_token_enable = en
+
         self.string_literal_stop = str_switch(
             self.string_literal_stop,
             self._string_literal_stop_single_char,
             en
         )
+
+        if not en:
+            self.set_newlines_separate_strings(True)
 
     def set_quoted_literals_enable(self, en: bool) -> None:
         """
@@ -765,6 +783,32 @@ class Tokenizer:
         self.string_literal_stop = str_switch(
             self.string_literal_stop,
             self._string_literal_stop_comment,
+            en
+        )
+
+    def set_newlines_separate_strings(self, en: bool) -> None:
+        """
+        Set whether newlines separate string literals. This can only be modified if
+        `Tokenizer.set_single_char_token_enable` has been set to `False`, and will raise a `ScrollsError` otherwise.
+
+        By default, when `Tokenizer.set_single_char_token_enable` is set to `False`, newlines will instead be
+        considered whitespace, and will separate strings without producing `TokenType.COMMAND_SEP` tokens.
+
+        To override this behavior, this function may be set to `False`. In this case, newlines will be rolled into
+        string literals, and ONLY spaces and tabs will separate string literals.
+        """
+        if self.single_char_token_enable:
+            raise errors.ScrollError("Cannot use set_newlines_separate_strings when single char tokens are enabled.")
+
+        self.newlines_separate_strings = en
+        self.string_literal_stop = str_switch(
+            self.string_literal_stop,
+            "\n",
+            en
+        )
+        self.whitespace = str_switch(
+            self.whitespace,
+            "\n",
             en
         )
 
