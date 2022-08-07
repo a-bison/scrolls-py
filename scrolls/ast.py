@@ -671,6 +671,9 @@ class Tokenizer:
             "\n"
         )
 
+        # Override flag for behavior when single_char_token_enable is False.
+        self.newlines_separate_strings = True
+
         self.string_literal_stop: str = self._string_literal_always_stop
         self.single_char_token_enable = True
         self.set_single_char_token_enable(True)
@@ -689,9 +692,6 @@ class Tokenizer:
         # be \n at the moment.)
         self.comments_enable = True
         self.set_comments_enable(True)
-
-        # Override flag for behavior when single_char_token_enable is False.
-        self.newlines_separate_strings = True
 
     def _unicode_escape(self) -> str:
         code_point = ""  # Initialization not needed, just satisfies some linters.
@@ -744,7 +744,7 @@ class Tokenizer:
         If `False`, then all special characters that would otherwise be their own token will be rolled
         into string literals.
         """
-        if self.newlines_separate_strings and en:
+        if self.newlines_separate_strings and not self.single_char_token_enable and en:
             # If we're re-enabling single char tokens and the newline separator behavior is still on,
             # we need to undo that first.
             self.set_newlines_separate_strings(False)
