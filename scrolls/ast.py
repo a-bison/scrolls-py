@@ -759,6 +759,9 @@ class Tokenizer:
 
         if not en:
             self.set_newlines_separate_strings(True)
+        else:
+            # If single char tokens are enabled, newlines must stop string literals for this to work properly.
+            self.string_literal_stop = str_ensure(self.string_literal_stop, "\n")
 
     def set_quoted_literals_enable(self, en: bool) -> None:
         """
