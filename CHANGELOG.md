@@ -10,10 +10,12 @@ incompatible changes may be made at any time.
 
 ### ADDED
 - Add `scrolls.Tokenizer.set_comments_enable`.
+- Add `scrolls.Tokenizer.set_newlines_separate_strings`.
 
 ### FIXED
 - Fix `scrolls.Tokenizer.set_quoted_literals_enable` not disabling
   quoted literals when called with `False`.
+- Fix KeyError on partially filled optional args for callbase commands.
 
 ## [0.1.1]
 **Beta Release** - `0.x.y` should not be considered stable, and backwards
