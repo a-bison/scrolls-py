@@ -1005,6 +1005,7 @@ class StringExpansionHandler(interpreter.CallbackExpansionHandler):
         self.add_call("vempty?", self.vempty)
         self.add_call("vhead", self.vhead)
         self.add_call("vtail", self.vtail)
+        self.add_call("vlen", self.vlen)
         self.add_call("rangev", self.rangev)
 
     def concat(self, context: interpreter.InterpreterContext) -> str:
@@ -1110,6 +1111,19 @@ class StringExpansionHandler(interpreter.CallbackExpansionHandler):
         """
         datatypes.require_arg_length(context, 1)
         return "".join(context.args[0].split(maxsplit=1)[1:])
+
+    def vlen(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Implements `vlen`. Returns the number of elements in a vector.
+
+        **Usage**
+        ```scrolls
+        set vec "a b c d"
+        print $(vlen $vec) # prints 4.
+        ```
+        """
+        datatypes.require_arg_length(context, 1)
+        return str(len(context.args[0].split()))
 
     def rangev(self, context: interpreter.InterpreterContext) -> str:
         """
