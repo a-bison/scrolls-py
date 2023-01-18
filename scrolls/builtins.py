@@ -3,7 +3,7 @@ Built in Scrolls language features.
 
 .. include:: pdoc/builtins.md
 """
-
+import math
 import operator
 import random
 import typing as t
@@ -631,6 +631,11 @@ class ArithmeticExpansionHandler(interpreter.CallbackExpansionHandler):
         self.add_call("/", self.div)
         self.add_call("//", self.intdiv)
         self.add_call("%", self.mod)
+        self.add_call("**", self.power)
+        self.add_call("sqrt", self.sqrt)
+        self.add_call("round", self.round)
+        self.add_call("floor", self.floor)
+        self.add_call("ceil", self.ceil)
 
     @staticmethod
     def __unary(context: interpreter.InterpreterContext, op: datatypes.UnaryNumOpT) -> str:
@@ -743,6 +748,83 @@ class ArithmeticExpansionHandler(interpreter.CallbackExpansionHandler):
         ```
         """
         return self.__binary(context, operator.mod)
+
+    def power(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Implements `**` (power). More than two arguments performs successive powers,
+        for example `$(** 2 3 4)` is equivalent to `(2^3)^4`.
+
+        **Usage**
+        ```scrolls
+        print $(** 2 3) # prints 8
+        print $(** 2 3 4) # prints 4096
+        print $(** 2.1 3) # prints
+        ```
+        """
+        return self.__reduce(context, operator.pow)
+
+    def sqrt(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Implements `sqrt` (square root). Takes one argument. Always returns a float,
+        so convert to int (see `ArithmeticExpansionHandler.toint`) if needed.
+
+        **Usage**
+        ```scrolls
+        print $(sqrt 16) # prints 4.0
+        ```
+        """
+        return self.__unary(context, math.sqrt)
+
+    def round(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Implements `round`. Takes one or two arguments.
+
+        If one argument, will round to the nearest whole number and
+        return an integer. Otherwise, rounds to the nearest decimal place
+        specified by the second argument and returns a float.
+
+        **Usage**
+        ```scrolls
+        print $(round 4.7281) # prints 5
+        print $(round 4.7281, 0) # prints 5.0
+        print $(round 4.7281, 2) # prints 4.73
+        # etc...
+        ```
+        """
+        # Datatype stuff is done manually here because it's not quite like the
+        # normal arithmetic operations.
+        datatypes.require_arg_length(context, 1)
+
+        if len(context.args) == 1:
+            return str(round(float(context.args[0])))
+
+        return str(round(float(context.args[0]), int(context.args[1])))
+
+    def floor(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Implements `floor`. Takes one argument. Returns the greatest integer less
+        than or equal to the argument.
+
+        **Usage**
+        ```scrolls
+        print $(floor 4.6) # prints 4
+        print $(floor -4.6) # prints -5
+        ```
+        """
+        return self.__unary(context, math.floor)
+
+    def ceil(self, context: interpreter.InterpreterContext) -> str:
+        """
+        Implements `ceil`. Takes one argument. Returns the lowest integer greater
+        than or equal to the argument.
+
+        **Usage**
+        ```scrolls
+        print $(ceil 4.6) # prints 5
+        print $(ceil -4.6) #prints -4
+        ```
+        """
+        return self.__unary(context, math.ceil)
 
 
 @base_config.expansionhandler
