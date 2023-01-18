@@ -4,11 +4,9 @@
 !def(fizzbuzz n) {
     !if($(divisible? $n 15)) {
         return "FizzBuzz"
-    }
-    !if($(divisible? $n 3)) {
+    } !elif($(divisible? $n 3)) {
         return "Fizz"
-    }
-    !if($(divisible? $n 5)) {
+    } !elif($(divisible? $n 5)) {
         return "Buzz"
     }
 

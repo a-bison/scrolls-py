@@ -360,6 +360,8 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
         self.add_call("repeat", self.repeat)
         self.add_call("for", self.for_)
         self.add_call("if", self.if_)
+        self.add_call("elif", self.elif_)
+        self.add_call("else", self.else_)
         self.add_call("while", self.while_)
         self.add_call("def", self.def_)
 
@@ -494,10 +496,32 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
 
         context.del_var(var_name)
 
+    def __cond_base(self, context: interpreter.InterpreterContext, respect_else_signal: bool) -> None:
+        # Base conditional control call implementation
+        if len(context.args) != 1:
+            raise interpreter.InterpreterError(
+                context,
+                f"if: needs one and only one argument"
+            )
+
+        if respect_else_signal and not context.else_signal:
+            return
+
+        check_result = datatypes.str_to_bool(context.args[0])
+
+        if datatypes.str_to_bool(context.args[0]):
+            context.interpreter.interpret_statement(context, context.control_node)
+
+        # Set after body has been evaluated so we don't lose check result
+        context.else_signal = not check_result
+
     def if_(self, context: interpreter.InterpreterContext) -> None:
         """
         Implements the `if` control structure. Takes one argument, a boolean. If it's `scrolls.datatypes.TRUE`,
-        executes the body statement. Otherwise, the body is skipped. `else` is not supported.
+        executes the body statement. Otherwise, the body is skipped.
+        [`elif`](#scrolls.builtins.BuiltinControlHandler.elif_) and
+        [`else`](#scrolls.builtins.BuiltinControlHandler.else_) may
+        be used to execute code if the condition is false.
 
         **Usage**
         ```scrolls
@@ -509,14 +533,57 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
         }
         ```
         """
-        if len(context.args) != 1:
+        self.__cond_base(context, respect_else_signal=False)
+
+    def elif_(self, context: interpreter.InterpreterContext) -> None:
+        """
+        Implements the `elif` control structure. Takes one argument, a boolean.  If it's `scrolls.datatypes.TRUE`,
+        executes the body statement. Otherwise, the body is skipped and the next
+        [`elif`](#scrolls.builtins.BuiltinControlHandler.elif_) or
+        [`else`](#scrolls.builtins.BuiltinControlHandler.else_) is
+        tried. Must be used after [`if`](#scrolls.builtins.BuiltinControlHandler.if_).
+
+        **Usage**
+        ```scrolls
+        !if($false) {
+            print "if: this will not print"
+        } !elif($true) {
+            print "elif: this will print"
+        } !else() {
+            print "else: this will not print"
+        }
+        ```
+        """
+        self.__cond_base(context, respect_else_signal=True)
+
+    def else_(self, context: interpreter.InterpreterContext) -> None:
+        """
+        Implements the `else` control structure. Takes no arguments. Must be
+        paired with a conditional to execute the body. See
+        [`if`](#scrolls.builtins.BuiltinControlHandler.if_) and
+        [`elif`](#scrolls.builtins.BuiltinControlHandler.elif_).
+
+        **Usage**
+        ```scrolls
+        !if($false) {
+            print "this will not print"
+        } !else() {
+            print "this will print"
+        }
+        ```
+        """
+        if len(context.args) != 0:
             raise interpreter.InterpreterError(
                 context,
-                f"if: needs one and only one argument"
+                f"else: does not take arguments"
             )
 
-        if datatypes.str_to_bool(context.args[0]):
+        if context.else_signal:
             context.interpreter.interpret_statement(context, context.control_node)
+
+            # Once the else signal has been interpreted, "consume" it so it can't be
+            # used again.
+            context.else_signal = False
 
     def while_(self, context: interpreter.InterpreterContext) -> None:
         """

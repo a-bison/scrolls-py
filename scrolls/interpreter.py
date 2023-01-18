@@ -311,6 +311,15 @@ class InterpreterContext:
         self._open_files: t.MutableMapping[int, t.IO[str]] = {}
         self._fid = 0
 
+        self.else_signal = False
+        """
+        Read by the `!else` builtin. If True, the !else control call executes
+        its body. If False, !else calls are skipped.
+        
+        Set at the very end of control calls you wish to have the ability to
+        use !else.
+        """
+
     @property
     def vars(self) -> ScopedVarStore:
         """The variable store."""
@@ -742,6 +751,10 @@ class RuntimeCallHandler(t.Generic[T_co]):
         context.vars.new_scope()
         for param, arg in zip(params, args):
             context.set_var(param, arg)
+
+        # In addition, clear the else signal. Would be strange if !else blocks
+        # could be run without a corresponding conditional
+        context.else_signal = False
 
         context.call_context.runtime_call = True
         try:
