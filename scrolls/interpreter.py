@@ -118,6 +118,9 @@ class CallContext:
     runtime_call: bool = False
     """A runtime call is a call defined while the interpreter is running, such as through `!def`."""
 
+    base_call: bool = False
+    """This value is only true for the base call, which corresponds to top level code not in any block."""
+
 
 class VarScope:
     """
@@ -523,6 +526,23 @@ class InterpreterContext:
 
         return self.call_context.control_node
 
+    def set_base_call(
+        self
+    ) -> None:
+        """
+        Sets the current call context to the base call context for top level code.
+
+        .. WARNING::
+            Provided for advanced usage, this is usually done automatically. Typical users will never need to call this.
+        """
+        logger.debug("set_base_call")
+        self._call_context = CallContext(
+            "__main__",
+            [],
+            ArgSourceMap(),
+            None
+        )
+
     def set_call(
         self,
         command: str,
@@ -543,21 +563,6 @@ class InterpreterContext:
             arg_nodes,
             control_node
         )
-
-    def in_call(self) -> bool:
-        """
-        Checks if the current context is in a call or not.
-        """
-        return self._call_context is not None
-
-    def reset_call(self) -> None:
-        """
-        Destroys the current call context.
-
-        .. WARNING::
-            Provided for advanced usage, this is usually done automatically. Typical users will never need to call this.
-        """
-        self._call_context = None
 
     def push_call(self) -> None:
         """
@@ -1130,6 +1135,7 @@ class Interpreter:
         Initialize a context for this interpreter.
         """
         context.interpreter = self
+        context.set_base_call()
         self.apply_initializers(context)
 
     def run_statement(
@@ -1249,8 +1255,7 @@ class Interpreter:
         if context is None:
             context = self.context_cls(tree.root)
 
-        context.interpreter = self
-        self.apply_initializers(context)
+        self.init_context(context)
 
         try:
             self.interpret_root(context, tree.root)
@@ -1333,13 +1338,12 @@ class Interpreter:
         else:
             control_node = None
 
-        if context.in_call():
-            context.push_call()
-            if self.over_call_depth_limit(context):
-                raise InterpreterError(
-                    context,
-                    f"Maximum call stack depth ({self.call_depth_limit}) exceeded."
-                )
+        context.push_call()
+        if self.over_call_depth_limit(context):
+            raise InterpreterError(
+                context,
+                f"Maximum call stack depth ({self.call_depth_limit}) exceeded."
+            )
 
         context.set_call(call_name, call_args, arg_node_map, control_node=control_node)
 
@@ -1353,17 +1357,11 @@ class Interpreter:
             result: T_co = handler.handle_call(context)
         except InterpreterReturn:
             # Ensure call stack is properly changed even on returns
-            if context.call_stack:
-                context.pop_call()
-            else:
-                context.reset_call()
+            context.pop_call()
 
             raise
 
-        if context.call_stack:
-            context.pop_call()
-        else:
-            context.reset_call()
+        context.pop_call()
 
         return result
 
