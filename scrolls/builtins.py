@@ -504,7 +504,7 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
                 f"if: needs one and only one argument"
             )
 
-        if respect_else_signal and not context.else_signal:
+        if respect_else_signal and not context.parent_call_context.else_signal:
             return
 
         check_result = datatypes.str_to_bool(context.args[0])
@@ -512,8 +512,8 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
         if datatypes.str_to_bool(context.args[0]):
             context.interpreter.interpret_statement(context, context.control_node)
 
-        # Set after body has been evaluated so we don't lose check result
-        context.else_signal = not check_result
+        # Signal to else-like control structures
+        context.parent_call_context.else_signal = not check_result
 
     def if_(self, context: interpreter.InterpreterContext) -> None:
         """
@@ -578,12 +578,12 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
                 f"else: does not take arguments"
             )
 
-        if context.else_signal:
+        if context.parent_call_context.else_signal:
             context.interpreter.interpret_statement(context, context.control_node)
 
             # Once the else signal has been interpreted, "consume" it so it can't be
             # used again.
-            context.else_signal = False
+            context.parent_call_context.else_signal = False
 
     def while_(self, context: interpreter.InterpreterContext) -> None:
         """

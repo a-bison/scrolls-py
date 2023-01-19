@@ -118,9 +118,12 @@ class CallContext:
     runtime_call: bool = False
     """A runtime call is a call defined while the interpreter is running, such as through `!def`."""
 
-    base_call: bool = False
-    """This value is only true for the base call, which corresponds to top level code not in any block."""
-
+    else_signal: bool = False
+    """
+    Read by the `!else` builtin. If True, the !else control call executes
+    its body. If False, !else calls are skipped. Should not be set manually,
+    use the 
+    """
 
 class VarScope:
     """
@@ -314,15 +317,6 @@ class InterpreterContext:
         self._open_files: t.MutableMapping[int, t.IO[str]] = {}
         self._fid = 0
 
-        self.else_signal = False
-        """
-        Read by the `!else` builtin. If True, the !else control call executes
-        its body. If False, !else calls are skipped.
-        
-        Set at the very end of control calls you wish to have the ability to
-        use !else.
-        """
-
     @property
     def vars(self) -> ScopedVarStore:
         """The variable store."""
@@ -486,6 +480,20 @@ class InterpreterContext:
         """
         self._call_check()
         return t.cast(CallContext, self._call_context)
+
+    @property
+    def parent_call_context(self) -> CallContext:
+        """
+        Get the context of the call that called the current one. Can be used to
+        influence signals in the parent context.
+        """
+        self._call_check()
+        if not self.call_stack:
+            raise InternalInterpreterError(
+                self, f"Cannot get parent of base call \"{self.call_context.call_name}\""
+            )
+
+        return self.call_stack[-1]
 
     @property
     def call_name(self) -> str:
@@ -756,10 +764,6 @@ class RuntimeCallHandler(t.Generic[T_co]):
         context.vars.new_scope()
         for param, arg in zip(params, args):
             context.set_var(param, arg)
-
-        # In addition, clear the else signal. Would be strange if !else blocks
-        # could be run without a corresponding conditional
-        context.else_signal = False
 
         context.call_context.runtime_call = True
         try:
