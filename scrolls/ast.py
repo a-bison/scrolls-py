@@ -1512,8 +1512,17 @@ def parse_control(ctx: ParseContext) -> ASTNode:
         ASTNodeType.CONTROL_CALL
     )
     control_node.children.append(parse_strtok(ctx))
-    control_node.children.append(parse_control_args(ctx))
-    control_node.children.append(_parse_statement(ctx))
+
+    try:
+        # Try to parse statement first, and count no () as no arguments
+        statement_node = _parse_statement(ctx)
+        args_node = ASTNode(ASTNodeType.CONTROL_ARGUMENTS, statement_node.tok)
+
+        control_node.children.append(args_node)
+        control_node.children.append(statement_node)
+    except errors.ParseError:
+        control_node.children.append(parse_control_args(ctx))
+        control_node.children.append(_parse_statement(ctx))
 
     return control_node
 

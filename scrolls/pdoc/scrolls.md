@@ -66,11 +66,19 @@ You can terminate lines with semicolons if you want, but this is optional.
 ```scrolls
 # syntax:
 !NAME(SPACE_DELIMITED_ARGUMENTS) STATEMENT
+
+# or if no arguments needed:
+!NAME STATEMENT
 ```
 
 Control structures all follow the same syntax in Scrolls. `!`, followed by the control name,
 followed by arguments, followed by a single statement. Scrolls supports a number of traditional
-control structures, including `while`, `if`, and `for`. 
+control structures, including `while`, `if`, and `for`.
+
+If no arguments need to be passed into the control call, as in `!control() STATEMENT`,
+the parenthesis may be omitted: `!control STATEMENT`. This is intended as syntactic sugar
+to make `!else` more sensible, but any added control structures will support this
+as well.
 
 In Scrolls, control structures are pluggable. Adding new ones does not increase the
 complexity of syntax; they're technically function calls, not keywords.

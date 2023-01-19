@@ -549,7 +549,7 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
             print "if: this will not print"
         } !elif($true) {
             print "elif: this will print"
-        } !else() {
+        } !else {
             print "else: this will not print"
         }
         ```
@@ -567,7 +567,7 @@ class BuiltinControlHandler(interpreter.CallbackControlHandler):
         ```scrolls
         !if($false) {
             print "this will not print"
-        } !else() {
+        } !else {
             print "this will print"
         }
         ```

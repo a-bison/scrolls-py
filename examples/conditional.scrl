@@ -1,12 +1,12 @@
 !if($true) {
     print "IF: This should print."
-} !else() {
+} !else {
     print "ELSE: This should not print."
 }
 
 !if($false) {
     print "IF: This should not print."
-} !else() {
+} !else {
     print "ELSE: This should print."
 }
 
@@ -14,7 +14,7 @@
     print "IF: This should print."
 } !elif($false) {
     print "ELIF: This should not print."
-} !else() {
+} !else {
     print "ELSE: This should not print."
 }
 
@@ -22,7 +22,7 @@
     print "IF: This should not print."
 } !elif($true) {
     print "ELIF: This should print."
-} !else() {
+} !else {
     print "ELSE: This should not print."
 }
 
@@ -30,6 +30,6 @@
     print "IF: This should not print."
 } !elif($false) {
     print "ELIF: This should not print."
-} !else() {
+} !else {
     print "ELSE: This should print."
 }
