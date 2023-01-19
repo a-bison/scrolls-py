@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 - The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [UNRELEASED]
+**Beta Release** - `0.x.y` should not be considered stable, and backwards
+incompatible changes may be made at any time.
+
+### ADDED
+- Add `!else` and `!elif` builtins.
+- Add `scrolls.CallContext.else_signal` for plugin support of `!else`.
+- Add `scrolls.InterpreterContext.parent_call_context`.
+- Add math builtins:
+  - `**`: Exponentiation
+  - `sqrt`: Square root
+  - `round`, `floor`, `ciel`: Rounding
+- Add `vlen` builtin.
+- Add a base call context (command, name `__main__`, no arguments) for toplevel code.
+
+### CHANGED
+- Empty parenthesis are now optional for control calls: `!else() -> !else`
+
+### REMOVED
+- Remove `scrolls.InterpreterContext.in_call`, because it no longer makes sense
+  to ask whether the interpreter is in a call or not due to base context.
+
+### FIXED
+- Fix oversight in `scrolls.InterpreterContext.interpret_ast` leading to
+  incomplete initialization of context for full AST execution.
+
 ## [0.2.0] - 2022-08-16
 **Beta Release** - `0.x.y` should not be considered stable, and backwards
 incompatible changes may be made at any time.
