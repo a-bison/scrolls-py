@@ -126,7 +126,7 @@ print $^output_msg $fib
 }
 ```
 
-***String Escapes***
+**String Escapes**
 ```scrolls
 print "\"test escapes\"\n\ttabbed\n\tlines\nunicode is supported: \u0398hello\u0398\n"
 ```
