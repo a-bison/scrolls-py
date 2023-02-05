@@ -29,3 +29,22 @@ print
 
 print "test printall"
 printall v1 v2
+
+!def(inc varname) {
+    nonlocal $varname
+    set $varname $(+ 1 $$varname)
+}
+
+!def(inc3 varname) {
+    nonlocal $varname
+    !repeat(3) inc $varname
+    print inc3: $varname is $$varname
+}
+
+print "test chaining nonlocal"
+set A 10
+printall A
+inc A
+printall A
+inc3 A
+printall A
