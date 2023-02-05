@@ -161,6 +161,39 @@ input name
 interpreter.run(script)
 ```
 
+## Known Issues
+
+### Interactive Control Calls
+
+Multiple control calls without an explicit command separator will break parsing
+in interactive mode. For example, the following wrongly identifies `else` as a 
+command call:
+
+```
+>>> !if($false) { print "from if" } !else() { print "from else" }
+error:
+0 !if($false) { print "from if" } !else() { print "from else" }
+                                   ^
+line 0: Command_call 'else' not found.
+```
+
+A workaround for this is to enter them one line at a time:
+
+```
+>>> !if($false) { print "from if" }
+>>> !else() { print "from else" }
+from else
+```
+
+Or use a semicolon:
+
+```
+>>> !if($false) { print "from if" }; !else() { print "from else" }
+from else
+```
+
+This bug does not affect the parsing of whole scripts.
+
 ## Acknowledgements
 
 - [hikari-lightbulb](https://github.com/tandemdude/hikari-lightbulb) by tandemdude, which inspired the
