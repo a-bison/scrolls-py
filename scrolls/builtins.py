@@ -1315,7 +1315,7 @@ class UnifiedCommandSettingHandler(interpreter.CallbackCommandHandler):
         self.add_call("use-unified-commands", self.use_unified_commands)
 
         self.enable_unified_commands = False
-        self.expansion_handler: t.Optional[interpreter.CallHandlerContainer[str]] = None
+        self.stored_context: t.Optional[interpreter.InterpreterContext] = None
 
     def use_unified_commands(self, context: interpreter.InterpreterContext) -> None:
         """
@@ -1346,14 +1346,7 @@ class UnifiedCommandSettingHandler(interpreter.CallbackCommandHandler):
         # workaround: need to store reference to the context to access
         # expansion handlers in __contains__ override. For now this is OK,
         # since it's not expected that the context will change mid-script.
-
-        # FIXME: Construct this once in the context object.
-        # It's constructed on the fly on *every call*... not great, and doesn't
-        # let extensions access the whole thing.
-        self.expansion_handler = interpreter.ChoiceCallHandlerContainer(
-            context.runtime_expansions,
-            context.interpreter.expansion_handlers
-        )
+        self.stored_context = context
 
     # override
     def __contains__(self, command_name: str) -> bool:
@@ -1363,7 +1356,7 @@ class UnifiedCommandSettingHandler(interpreter.CallbackCommandHandler):
             return True
         elif self.enable_unified_commands:
             try:
-                self.expansion_handler.get_for_call(command_name)
+                self.stored_context.all_expansions.get_for_call(command_name)
                 return True
             except KeyError:
                 return False
@@ -1382,4 +1375,4 @@ class UnifiedCommandSettingHandler(interpreter.CallbackCommandHandler):
         if super().__contains__(context.call_name):
             super().handle_call(context)
         else:
-            self.expansion_handler.get_for_call(context.call_name).handle_call(context)
+            context.all_expansions.get_for_call(context.call_name).handle_call(context)

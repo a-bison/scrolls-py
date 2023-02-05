@@ -311,8 +311,14 @@ class InterpreterContext:
         """The number of statements that have been run by the interpreter so far."""
 
         self._call_stack: t.MutableSequence[CallContext] = []
-        self._command_handlers: BaseCallHandlerContainer[None] = BaseCallHandlerContainer()
-        self._expansion_handlers: BaseCallHandlerContainer[str] = BaseCallHandlerContainer()
+
+        # Handlers for calls defined at runtime
+        self._runtime_command_handlers: MutableCallHandlerContainer[None] = BaseCallHandlerContainer()
+        self._runtime_expansion_handlers: MutableCallHandlerContainer[str] = BaseCallHandlerContainer()
+
+        # Combined handlers that check both runtime and static calls
+        self._all_command_handlers: t.Optional[CallHandlerContainer[None]] = None
+        self._all_expansion_handlers: t.Optional[CallHandlerContainer[str]] = None
 
         self._open_files: t.MutableMapping[int, t.IO[str]] = {}
         self._fid = 0
@@ -394,9 +400,9 @@ class InterpreterContext:
         return self._open_files[fid]
 
     @property
-    def runtime_commands(self) -> 'BaseCallHandlerContainer[None]':
+    def runtime_commands(self) -> 'MutableCallHandlerContainer[None]':
         """The call handler container for runtime command handlers. Runtime commands are defined while the interpreter
-        is running, i.e. through the `!def` directive or similar. Runtime commands
+        is running, i.e. through the `!def` directive or similar.
 
         For any command handler added to this container, all commands defined within it:
 
@@ -404,10 +410,10 @@ class InterpreterContext:
         - **Must** set the `CallContext.runtime_call` parameter to `True`.
         - **Must** cease executing if an `InterpreterStop` or `InterpreterReturn` is raised.
         """
-        return self._command_handlers
+        return self._runtime_command_handlers
 
     @property
-    def runtime_expansions(self) -> 'BaseCallHandlerContainer[str]':
+    def runtime_expansions(self) -> 'MutableCallHandlerContainer[str]':
         """Same as `InterpreterContext.runtime_commands`, but for expansion calls.
 
         Runtime expansions follow the same requirements as commands, plus:
@@ -415,7 +421,62 @@ class InterpreterContext:
         - **Must** set the `CallContext.return_value` parameter upon call completion.
         - **Must** catch `InterpreterReturn` and set the return value on this exception.
         """
-        return self._expansion_handlers
+        return self._runtime_expansion_handlers
+
+    @property
+    def all_commands(self) -> 'CallHandlerContainer[None]':
+        """
+        The call handler container for all commands currently defined at execution
+        time, including all static commands.
+
+        Plugins wishing to programmatically call commands should use this.
+
+        Raises:
+            InternalInterpreterError: If this property is not initialized.
+        """
+        if self._all_command_handlers is None:
+            raise InternalInterpreterError(
+                self, "Bad context: _all_command_handlers not initialized."
+            )
+
+        return self._all_command_handlers
+
+    @property
+    def all_expansions(self) -> 'CallHandlerContainer[str]':
+        """
+        The call handler container for all expansions currently defined at execution
+        time, including all static commands.
+
+        Plugins wishing to programatically call expansions should use this.
+
+        Raises:
+            InternalInterpreterError: If this property is not initialized.
+        """
+        if self._all_expansion_handlers is None:
+            raise InternalInterpreterError(
+                self, "Bad context: _all_expansion_handlers not initialized."
+            )
+
+        return self._all_expansion_handlers
+
+    def init_handlers(
+        self,
+        interpreter_command_handlers: 'CallHandlerContainer[None]',
+        interpreter_expansion_handlers: 'CallHandlerContainer[str]'
+    ) -> None:
+        """
+        Internal to the interpreter. This is called with the static command
+        handler containers belonging to the interpreter when the context is
+        initialized.
+        """
+        self._all_command_handlers = ChoiceCallHandlerContainer(
+            self.runtime_commands,
+            interpreter_command_handlers
+        )
+        self._all_expansion_handlers = ChoiceCallHandlerContainer(
+            self.runtime_expansions,
+            interpreter_expansion_handlers
+        )
 
     @property
     def interpreter(self) -> 'Interpreter':
@@ -1140,6 +1201,10 @@ class Interpreter:
         """
         context.interpreter = self
         context.set_base_call()
+        context.init_handlers(
+            self.command_handlers,
+            self.expansion_handlers
+        )
         self.apply_initializers(context)
 
     def run_statement(
@@ -1382,10 +1447,7 @@ class Interpreter:
     def interpret_command(self, context: InterpreterContext, node: ast.ASTNode) -> None:
         """Interpret an `scrolls.ast.ASTNode` of type `scrolls.ast.ASTNodeType.COMMAND_CALL`."""
         self.interpret_call(
-            ChoiceCallHandlerContainer(
-                context.runtime_commands,
-                self.command_handlers
-            ),
+            context.all_commands,
             context,
             node,
             ast.ASTNodeType.COMMAND_CALL
@@ -1406,10 +1468,7 @@ class Interpreter:
     def interpret_expansion_call(self, context: InterpreterContext, node: ast.ASTNode) -> str:
         """Interpret an `scrolls.ast.ASTNode` of type `scrolls.ast.ASTNodeType.EXPANSION_CALL`."""
         result = self.interpret_call(
-            ChoiceCallHandlerContainer(
-                context.runtime_expansions,
-                self.expansion_handlers
-            ),
+            context.all_expansions,
             context,
             node,
             ast.ASTNodeType.EXPANSION_CALL

@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 - The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+**Beta Release** - `0.x.y` should not be considered stable, and backwards
+incompatible changes may be made at any time.
+
+### ADDED
+- Add `scrolls.InterpreterContext.all_commands` and
+  `scrolls.InterpreterContext.all_expansions` for programmatic
+  calls from plugins.
+- Add `scrolls.InterpreterContext.init_handlers`, to be called
+  by the interpreter.
+
+### FIXED
+- Fix ineffecient creation of `scrolls.ChoiceCallHandlerContainer` instances
+  in `scrolls.Interpreter`.
+- Fix typo in documentation of `scrolls.InterpreterContext.runtime_commands`.
+- Return protocol instead of base class for `scrolls.InterpreterContext.runtime_commands`
+  and `scrolls.InterpreterContext.runtime_expansions`
+
 ## [0.3.1] - 2023-02-05
 **Beta Release** - `0.x.y` should not be considered stable, and backwards
 incompatible changes may be made at any time.
