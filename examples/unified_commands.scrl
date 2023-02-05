@@ -1,0 +1,22 @@
+use-unified-commands
+
+set expansion-called $false
+
+!def(test-expansion) {
+    global expansion-called
+
+    set expansion-called $true
+    return "blah"
+}
+
+print "test expansion"
+print "expansion-called = " $expansion-called
+print "$(test-expansion) = " $(test-expansion)
+print "expansion-called = " $expansion-called
+print
+
+set expansion-called $false
+print "test expansion as command"
+print "expansion-called = " $expansion-called
+test-expansion
+print "expansion-called = " $expansion-called

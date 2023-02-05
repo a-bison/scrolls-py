@@ -46,6 +46,9 @@ def main() -> None:
     interpreter.command_handlers.add(scrolls.StdIoCommandHandler())
     interpreter.expansion_handlers.add(scrolls.RandomExpansionHandler())
 
+    # Needs to go last, so it's the last attempted command handler.
+    scrolls.unified_config.configure(interpreter)
+
     if args.file:
         file = pathlib.Path(args.file)
 

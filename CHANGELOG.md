@@ -18,6 +18,7 @@ incompatible changes may be made at any time.
   - `round`, `floor`, `ciel`: Rounding
 - Add `vlen` builtin.
 - Add a base call context (command, name `__main__`, no arguments) for toplevel code.
+- Add `use-unified-commands`, which allows expansions to be used as commands.
 
 ### CHANGED
 - Empty parenthesis are now optional for control calls: `!else() -> !else`

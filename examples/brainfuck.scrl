@@ -1,4 +1,5 @@
 # Brainfuck interpreter written in scrolls, because funny (also proves Turing completeness)
+use-unified-commands
 
 set loopstack
 set tape-ptr 0 # tape pointer
@@ -14,11 +15,6 @@ set pc 0       # program counter
     set head $(vhead $$varname)
     set $varname $(vtail $$varname)
     return $head
-}
-
-!def(stack-pop-cmd varname) {
-    nonlocal $varname
-    set _ $(stack-pop $varname)
 }
 
 # Scrolls doesn't currently support arrays very well, so we're doing something
@@ -92,7 +88,7 @@ set pc 0       # program counter
             !while($(not $(vempty? $tmpstack))) {
                 set c $(getc $script $pc)
                 !if($(eq? $c [)) stack-push tmpstack 1
-                !if($(eq? $c ])) stack-pop-cmd tmpstack
+                !if($(eq? $c ])) stack-pop tmpstack
                 set pc $(+ $pc 1)
             }
 
@@ -106,7 +102,7 @@ set pc 0       # program counter
 
         # If 0, loop is done, so pop pc and continue
         !if($(eq? $x 0)) {
-            stack-pop-cmd loopstack
+            stack-pop loopstack
         }
 
         # Otherwise, just peek at the top of the stack and jump to the matching [

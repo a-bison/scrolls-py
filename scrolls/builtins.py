@@ -23,7 +23,8 @@ __all__ = (
     "FileCommandHandler",
     "FileExpansionHandler",
     "base_config",
-    "file_config"
+    "file_config",
+    "unified_config"
 )
 
 base_config: containers.DecoratorInterpreterConfig = containers.DecoratorInterpreterConfig()
@@ -51,6 +52,18 @@ Consists of:
 - `FileExpansionHandler`
 - `FileCommandHandler`
 """
+
+unified_config: containers.DecoratorInterpreterConfig = containers.DecoratorInterpreterConfig()
+"""
+Adds `use-unified-commands`. After this command is called, all expansions may be called
+as commands. Their return value will be discarded. Note that if a command exists with
+the same name as an expansion, 
+
+Consists of:
+
+
+"""
+
 
 class StdIoCommandHandler(interpreter.CallbackCommandHandler):
     """
@@ -1292,3 +1305,80 @@ class StringExpansionHandler(interpreter.CallbackExpansionHandler):
         b = int(b)
 
         return " ".join([str(x) for x in range(a, b)])
+
+
+@unified_config.commandhandler
+class UnifiedCommandSettingHandler(interpreter.CallbackCommandHandler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.add_call("use-unified-commands", self.use_unified_commands)
+
+        self.enable_unified_commands = False
+        self.expansion_handler: t.Optional[interpreter.CallHandlerContainer[str]] = None
+
+    def use_unified_commands(self, context: interpreter.InterpreterContext) -> None:
+        """
+        Implements the `use-unified-commands` command. When used, unified commands
+        will be enabled for the rest of the script, allowing all expansions
+        to be used as commands. The most common way this would be used is if
+        you have expansions with side-effects, and don't care about the return
+        value.
+
+        **Usage**
+        ```scrolls
+        use-unified-commands
+
+        set some-global-variable "before"
+
+        !def(test) {
+            set some-global-variable "after"
+            return "blah"
+        }
+
+        print $some-global-variable
+        test # test may be used as command here despite being defined as an expansion
+        print $some-global-variable
+        ```
+        """
+        self.enable_unified_commands = True
+
+        # workaround: need to store reference to the context to access
+        # expansion handlers in __contains__ override. For now this is OK,
+        # since it's not expected that the context will change mid-script.
+
+        # FIXME: Construct this once in the context object.
+        # It's constructed on the fly on *every call*... not great, and doesn't
+        # let extensions access the whole thing.
+        self.expansion_handler = interpreter.ChoiceCallHandlerContainer(
+            context.runtime_expansions,
+            context.interpreter.expansion_handlers
+        )
+
+    # override
+    def __contains__(self, command_name: str) -> bool:
+        super_contains = super().__contains__(command_name)
+
+        if super_contains:
+            return True
+        elif self.enable_unified_commands:
+            try:
+                self.expansion_handler.get_for_call(command_name)
+                return True
+            except KeyError:
+                return False
+        else:
+            return False
+
+    # override
+    def handle_call(self, context: interpreter.InterpreterContext) -> None:
+        # If no unified commands, defer to super.
+        if not self.enable_unified_commands:
+            super().handle_call(context)
+            return
+
+        # For unified, proceed normally if superclass contains the call.
+        # Otherwise, call an expansion and discard the return value.
+        if super().__contains__(context.call_name):
+            super().handle_call(context)
+        else:
+            self.expansion_handler.get_for_call(context.call_name).handle_call(context)
