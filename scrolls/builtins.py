@@ -22,6 +22,7 @@ __all__ = (
     "BuiltinInitializer",
     "FileCommandHandler",
     "FileExpansionHandler",
+    "UnifiedCommandSettingHandler",
     "base_config",
     "file_config",
     "unified_config"
@@ -61,7 +62,7 @@ the same name as an expansion,
 
 Consists of:
 
-
+- `UnifiedCommandSettingHandler`
 """
 
 
