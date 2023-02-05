@@ -67,6 +67,70 @@ If no file is specified, the interpreter will run in interactive mode:
 python3 -m scrolls
 ```
 
+### Example Code
+
+Here are some sample programs showcasing the basic syntax of Scrolls. See the examples directory for more.
+
+[**Fizzbuzz**](https://en.wikipedia.org/wiki/Fizz_buzz)
+```scrolls
+!def(divisible? a b) {
+    return $(eq? 0 $(% $a $b))
+}
+
+!for(n in $^(rangev 1 101)) {
+    !if($(divisible? $n 15)) {
+        print "FizzBuzz"
+    } !elif($(divisible? $n 3)) {
+        print "Fizz"
+    } !elif($(divisible? $n 5)) {
+        print "Buzz"
+    } !else {
+        print $n
+    }
+}
+```
+
+**Nth [Fibonacci Number](https://en.wikipedia.org/wiki/Fibonacci_number)**
+```scrolls
+print "This will calculate fib N where fib 0 = 0, fib 1 = 1"
+print "Enter N."
+input n
+
+set output_msg "Fibonacci number" $n "is"
+
+!if($(< $n 2)) {
+    print $^output_msg $n
+    stop
+}
+
+set fib_prev 0
+set fib 1
+set i 2
+
+!while($(<= $i $n)) {
+    set tmp $fib_prev
+    set fib_prev $fib
+    set fib $(+ $tmp $fib)
+    set i $(+ $i 1)
+}
+
+print $^output_msg $fib
+```
+
+**Syntax Quirks**
+```scrolls
+# In scrolls everything is a string
+"print" "Everything is a string:"
+!"for"("operator" "in" "+" "-" "*" "/") {
+  "print" $($"operator" "5" "8")
+}
+```
+
+***String Escapes***
+```scrolls
+print "\"test escapes\"\n\ttabbed\n\tlines\nunicode is supported: \u0398hello\u0398\n"
+```
+
 ### Programmatic Usage
 
 Scrolls may be embedded into any python program:
