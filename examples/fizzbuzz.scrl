@@ -1,18 +1,15 @@
 !def(divisible? a b) {
     return $(eq? 0 $(% $a $b))
 }
-!def(fizzbuzz n) {
-    !if($(divisible? $n 15)) {
-        return "FizzBuzz"
-    } !elif($(divisible? $n 3)) {
-        return "Fizz"
-    } !elif($(divisible? $n 5)) {
-        return "Buzz"
-    }
-
-    return $n
-}
 
 !for(n in $^(rangev 1 101)) {
-    print $(fizzbuzz $n)
+    !if($(divisible? $n 15)) {
+        print "FizzBuzz"
+    } !elif($(divisible? $n 3)) {
+        print "Fizz"
+    } !elif($(divisible? $n 5)) {
+        print "Buzz"
+    } !else {
+        print $n
+    }
 }
