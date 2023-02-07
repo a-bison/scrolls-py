@@ -6,6 +6,14 @@ import sys
 import scrolls
 
 
+PRELUDE = """
+use-unified-commands
+use-print-on-unified
+!def(quit) stop
+!def(q) quit
+"""
+
+
 def set_up_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="scrolls",
@@ -23,6 +31,13 @@ def set_up_argparse() -> argparse.ArgumentParser:
     parser.add_argument(
         "--verbose", "-v", action="store_true", help=(
             "Verbose mode."
+        )
+    )
+
+    parser.add_argument(
+        "--no-prelude", action="store_true", dest="no_prelude", help=(
+            "By default interactive mode runs a prelude script that configures a few "
+            "features useful in interactive mode. This option will skip the prelude script."
         )
     )
 
@@ -69,7 +84,11 @@ def main() -> None:
     else:
         print(f"Scrolls v{scrolls.__version__} (interactive mode)")
         print("Type \"stop\" to quit.")
-        interpreter.repl(on_error=scrolls_error)
+
+        if args.no_prelude:
+            interpreter.repl(on_error=scrolls_error)
+        else:
+            interpreter.repl(on_error=scrolls_error, prelude=PRELUDE)
 
 
 main()

@@ -14,6 +14,15 @@ incompatible changes may be made at any time.
   calls from plugins.
 - Add `scrolls.InterpreterContext.init_handlers`, to be called
   by the interpreter.
+- Add `prelude` argument to `scrolls.Interpreter.repl`, allows running
+  a script before dropping into interactive mode.
+- Add builtin: `use-print-on-unified`, which will print a debug message when an
+  expansion is used as a command. This is automatically enabled in interactive mode.
+- Using `q` or `quit` in interactive mode will quit. The preferred way is still
+  `stop`, but the other two are so common might as well add them.
+
+### CHANGED
+- Automatically enable unified commands for interactive mode.
 
 ### FIXED
 - Fix ineffecient creation of `scrolls.ChoiceCallHandlerContainer` instances

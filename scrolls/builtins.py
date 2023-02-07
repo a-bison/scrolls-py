@@ -1313,8 +1313,11 @@ class UnifiedCommandSettingHandler(interpreter.CallbackCommandHandler):
     def __init__(self) -> None:
         super().__init__()
         self.add_call("use-unified-commands", self.use_unified_commands)
+        self.add_call("use-print-on-unified", self.use_print_on_unified)
 
         self.enable_unified_commands = False
+        self.print_unified = False
+
         self.stored_context: t.Optional[interpreter.InterpreterContext] = None
 
     def use_unified_commands(self, context: interpreter.InterpreterContext) -> None:
@@ -1348,6 +1351,30 @@ class UnifiedCommandSettingHandler(interpreter.CallbackCommandHandler):
         # since it's not expected that the context will change mid-script.
         self.stored_context = context
 
+    def use_print_on_unified(self, context: interpreter.InterpreterContext) -> None:
+        """
+        Implements the `use-print-on-unified` command. Only meaningful when
+        `use-unified-commands` is also used.
+
+        With this setting active, when an expansion is used as a command,
+        a debug message will be printed showing the arguments and return value.
+
+        Only usable if the executing interpreter has `scrolls.builtins.StdIoCommandHandler`
+        loaded.
+        """
+        if self.print_unified:
+            return
+
+        for command_handler in context.all_commands:
+            if isinstance(command_handler, StdIoCommandHandler):
+                self.print_unified = True
+                break
+        else:
+            raise interpreter.InterpreterError(
+                context,
+                "Cannot use use-print-on-unified when StdIo is disabled."
+            )
+
     # override
     def __contains__(self, command_name: str) -> bool:
         super_contains = super().__contains__(command_name)
@@ -1375,4 +1402,8 @@ class UnifiedCommandSettingHandler(interpreter.CallbackCommandHandler):
         if super().__contains__(context.call_name):
             super().handle_call(context)
         else:
-            context.all_expansions.get_for_call(context.call_name).handle_call(context)
+            result = context.all_expansions.get_for_call(context.call_name).handle_call(context)
+
+            if self.print_unified:
+                options = " ".join([f"\"{arg}\"" for arg in context.call_context.args])
+                print(f"$({context.call_name} {options}): returned \"{result}\"")

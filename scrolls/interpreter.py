@@ -1243,7 +1243,8 @@ class Interpreter:
 
     def repl(
         self,
-        on_error: t.Optional[t.Callable[[errors.ScrollError], None]] = None
+        on_error: t.Optional[t.Callable[[errors.ScrollError], None]] = None,
+        prelude: t.Optional[str] = None
     ) -> None:
         """
         Drop into a REPL (read eval print loop).
@@ -1251,11 +1252,19 @@ class Interpreter:
         Args:
             on_error: A function to call when an error occurs. If `None`,
                       errors will stop the REPL.
+            prelude: A scrolls script that will run before the repl starts.
         """
         stream = ast.REPLStream()
         tokenizer = ast.Tokenizer(stream)
-        context = self.context_cls()
-        self.init_context(context)
+
+        if prelude is not None:
+            logger.debug("repl: Running prelude.")
+            context = self.run(prelude)
+            logger.debug("repl: Prelude complete.")
+        else:
+            logger.debug("repl: Running without prelude.")
+            context = self.context_cls()
+            self.init_context(context)
 
         while True:
             try:
