@@ -120,10 +120,11 @@ class CallContext:
 
     else_signal: bool = False
     """
-    Read by the `!else` builtin. If True, the !else control call executes
-    its body. If False, !else calls are skipped. Should not be set manually,
-    use the 
+    Read by the `!else` builtin. If True, the next `!else` called in the current
+    context will execute, and set the signal back to False. From within a control
+    call, this should be set through `InterpreterContext.parent_call_context`.
     """
+
 
 class VarScope:
     """
