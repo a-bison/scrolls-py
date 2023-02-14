@@ -1312,6 +1312,11 @@ class StringExpansionHandler(interpreter.CallbackExpansionHandler):
 
 @unified_config.commandhandler
 class UnifiedCommandSettingHandler(interpreter.CallbackCommandHandler):
+    """
+    Implements settings related to unified commands. See
+    `UnifiedCommandSettingHandler.use_unified_commands`.
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.add_call("use-unified-commands", self.use_unified_commands)
