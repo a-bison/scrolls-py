@@ -5,7 +5,6 @@ import sys
 
 import scrolls
 
-
 PRELUDE = """
 use-unified-commands
 use-print-on-unified
@@ -59,6 +58,7 @@ def main() -> None:
     scrolls.base_config.configure(interpreter)
     scrolls.file_config.configure(interpreter)
     interpreter.command_handlers.add(scrolls.StdIoCommandHandler())
+    interpreter.command_handlers.add(scrolls.DebugCommandHandler())
     interpreter.expansion_handlers.add(scrolls.RandomExpansionHandler())
 
     # Needs to go last, so it's the last attempted command handler.

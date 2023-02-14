@@ -3,6 +3,7 @@ Built in Scrolls language features.
 
 .. include:: pdoc/builtins.md
 """
+import code
 import math
 import operator
 import random
@@ -23,6 +24,7 @@ __all__ = (
     "FileCommandHandler",
     "FileExpansionHandler",
     "UnifiedCommandSettingHandler",
+    "DebugCommandHandler",
     "base_config",
     "file_config",
     "unified_config"
@@ -1407,3 +1409,54 @@ class UnifiedCommandSettingHandler(interpreter.CallbackCommandHandler):
             if self.print_unified:
                 options = " ".join([f"\"{arg}\"" for arg in context.call_context.args])
                 print(f"$({context.call_name} {options}): returned \"{result}\"")
+
+
+class DebugCommandHandler(interpreter.CallbackCommandHandler):
+    """
+    Implements debug commands.
+
+    .. WARNING::
+        DO NOT LOAD THIS HANDLER FOR REMOTE USES. IT ALLOWS ACCESS TO A
+        PYTHON PROMPT, THROUGH WHICH ARBITRARY CODE MAY BE EXECUTED.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.add_call("python", self.python)
+        self.add_call("backtrace", self.backtrace)
+
+    def _exit_console(self) -> t.NoReturn:
+        print("Returning to scrolls.")
+        raise SystemExit()
+
+    def python(self, context: interpreter.InterpreterContext) -> None:
+        """
+        Implements `python`. Drops into a python prompt, allowing
+        inspection of the state of the interpreter for debug purposes.
+
+        Takes no arguments.
+        """
+        py_vars = dict(locals())
+        py_vars["quit"] = self._exit_console
+        console = code.InteractiveConsole(locals=py_vars)
+
+        banner = (
+            "Entering debug python interpreter.\n"
+            "Context may be accessed through \"context\".\n"
+            "\"quit()\" to return to scrolls."
+        )
+        try:
+            console.interact(banner=banner)
+        except SystemExit:
+            pass
+
+    def backtrace(self, context: interpreter.InterpreterContext) -> None:
+        """
+        Implements "backtrace". Prints the contents of the call stack to stout.
+
+        .. NOTE::
+            This is the same backtrace that is printed on error.
+
+        Takes no arguments.
+        """
+        print(context.get_backtrace())

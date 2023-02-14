@@ -7,6 +7,7 @@ The interpreter implementation.
 import abc
 import dataclasses
 import logging
+import math
 import pathlib
 import types
 import typing as t
@@ -124,6 +125,60 @@ class CallContext:
     context will execute, and set the signal back to False. From within a control
     call, this should be set through `InterpreterContext.parent_call_context`.
     """
+
+    _id_format: t.ClassVar[str] = "{id:<{id_size}}"
+    _str_format: t.ClassVar[str] = "{flags:<5} {name_and_args}"
+    _trace_format: t.ClassVar[str] = f"{_id_format} {_str_format}"
+    _id_title: t.ClassVar[str] = "ID"
+
+    @classmethod
+    def _min_id_size(cls, id_size: int) -> int:
+        return max(id_size, len(cls._id_title))
+
+    @classmethod
+    def trace_banner(cls, id_size: int) -> str:
+        """
+        Gets a banner string for a backtrace. Should be followed by a list of
+        `trace_str` outputs.
+
+        Args:
+            id_size: The size in characters of the ID field.
+        """
+        return cls._trace_format.format(
+            id=cls._id_title,
+            id_size=cls._min_id_size(id_size),
+            flags="FLAGS",
+            name_and_args="NAME+ARGS"
+        )
+
+    def trace_str(self, id: int, id_size: int) -> str:
+        """
+        Gets a string representation of this call context for the purposes
+        of printing a stack trace.
+
+        Args:
+            id: The numeric ID of the trace item.
+            id_size: The size in characters of the ID field.
+        """
+        id_str = self._id_format.format(id=id, id_size=self._min_id_size(id_size))
+        return f"{id_str} {self}"
+
+    def __str__(self) -> str:
+        flags = [
+            "!" if self.control_node is not None else "-",
+            "e" if self.else_signal else "-",
+            "r" if self.runtime_call else "-"
+        ]
+
+        name_and_args = [
+            f"\"{self.call_name}\"",
+            *[f"\"{arg}\"" for arg in self.args]
+        ]
+
+        return self._str_format.format(
+            flags="".join(flags),
+            name_and_args=" ".join(name_and_args)
+        )
 
 
 class VarScope:
@@ -692,6 +747,23 @@ class InterpreterContext:
             f"cannot return outside of function"
         )
 
+    def get_backtrace(self) -> str:
+        """
+        Gets a printable string showing the full call backtrace for this
+        context.
+        """
+        stack = list(self.call_stack) + [self.call_context]
+        stack_size = len(stack)
+        id_size = int(math.log(stack_size, 10)) + 1
+
+        trace = [
+            "backtrace (most recent call last)",
+            CallContext.trace_banner(id_size),
+            *[call_ctx.trace_str(count, id_size) for count, call_ctx in enumerate(stack)]
+        ]
+
+        return "\n".join(trace)
+
 
 class CallHandler(t.Protocol[T_co]):
     """
@@ -1049,10 +1121,19 @@ class InterpreterError(errors.PositionalError):
             )
 
     def __str__(self) -> str:
+        trace = self.ctx.get_backtrace()
+        s = [trace]
+
         if self.ctx.current_node.has_token():
-            return super().__str__()
+            s += [
+                "",
+                "where:",
+                super().__str__()
+            ]
         else:
-            return "Interpreter error on node with uninitialized token."
+            s.append("Interpreter error on node with uninitialized token.")
+
+        return "\n".join(s)
 
 
 class MissingCallError(InterpreterError):

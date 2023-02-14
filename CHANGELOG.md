@@ -20,9 +20,17 @@ incompatible changes may be made at any time.
   expansion is used as a command. This is automatically enabled in interactive mode.
 - Using `q` or `quit` in interactive mode will quit. The preferred way is still
   `stop`, but the other two are so common might as well add them.
+- Add `trace_banner`, `trace_str`, and `__str__` to `scrolls.CallContext`, for
+  printing stack traces.
+- Add `get_backtrace` to `scrolls.InterpreterContext`. Prints a call stack
+  and context summary for the current interpreter context.
+- Add `python` and `backtrace` commands, under a new builtin handler
+  (`scrolls.DebugCommandHandler`).
 
 ### CHANGED
 - Automatically enable unified commands for interactive mode.
+- `scrolls.InterpreterError` now produces a stack trace in addition to pointing out
+  the error in the code.
 
 ### FIXED
 - Fix ineffecient creation of `scrolls.ChoiceCallHandlerContainer` instances
