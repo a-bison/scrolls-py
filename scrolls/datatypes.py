@@ -1,5 +1,5 @@
 """
-Datatype conversions for Scrolls. This module defines tools for writing `scrolls.interpreter.CallHandler` implementations
+Datatype conversions for Scrolls. This module defines tools for writing `scrolls.interpreter.callhandler.CallHandler` implementations
 that act like the built-in ones. Including:
 
 - Implicit type conversion logic.
@@ -120,7 +120,7 @@ def require_numeric(context: interpreter.InterpreterContext, s: str) -> ScrollNu
         - `(float, NumericType.FLOAT)` if `s` is a float
 
     Raises:
-        `scrolls.interpreter.InterpreterError` if no number is found.
+        `scrolls.interpreter.errors.InterpreterError` if no number is found.
     """
     n, t = str_to_numeric(s)
 
@@ -146,7 +146,7 @@ def require_all_numeric(
           In this case, *all* returned numbers will be floats.
 
     Raises:
-        `scrolls.interpreter.InterpreterError` if any of `strs` could not be parsed as a number.
+        `scrolls.interpreter.errors.InterpreterError` if any of `strs` could not be parsed as a number.
     """
     out = []
     convert_to_float = False
@@ -168,7 +168,7 @@ def require_arg_length(context: interpreter.InterpreterContext, n: int, args: t.
     Require that the current call was passed at least `n` arguments.
 
     Raises:
-        `scrolls.interpreter.InterpreterError` if this is not the case.
+        `scrolls.interpreter.errors.InterpreterError` if this is not the case.
     """
     if not args:
         args = context.args

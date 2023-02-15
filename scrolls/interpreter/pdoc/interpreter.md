@@ -1,12 +1,12 @@
-This module is the main point of interaction for most uses of Scrolls. The `Interpreter` implements functions that
-interpret Scrolls scripts. The `InterpreterContext` class is responsible for tracking the state of the Scrolls
+This module is the main point of interaction for most uses of Scrolls. The `scrolls.interpreter.run.Interpreter` implements functions that
+interpret Scrolls scripts. The `scrolls.interpreter.state.InterpreterContext` class is responsible for tracking the state of the Scrolls
 interpreter.
 
 # Using the Interpreter
 
 ## Quickstart
 
-Basic usage of the interpreter is straightforward. Instantiate `Interpreter`, and configure it with the desired
+Basic usage of the interpreter is straightforward. Instantiate `scrolls.interpreter.run.Interpreter`, and configure it with the desired
 features, either from `scrolls.builtins`, or custom modules. Then, the interpreter may be used to run Scrolls scripts.
 
 ```py
@@ -48,7 +48,7 @@ need a more concrete example.
 Of course, the main usage of Scrolls is not as a standalone language, but as an engine embedded in a parent application.
 Eventually, you'll most likely need to implement extensions to the language.
 
-The primary method of extending Scrolls is through call handlers (`CallHandler`).
+The primary method of extending Scrolls is through call handlers (`scrolls.interpreter.callhandler.CallHandler`).
 
 ### Call Types
 
@@ -66,8 +66,8 @@ print "Hello," $name
 ```
 
 In the above example, `print` and `input` are command calls. Command calls do not return anything. In `scrolls.interpreter`
-terms, command calls are calls for which `CallHandler.handle_call` returns `None`. Command calls are counted as
-statements. See `Interpreter.interpret_statement`.
+terms, command calls are calls for which `scrolls.interpreter.callhandler.CallHandler.handle_call` returns `None`. Command calls are counted as
+statements. See `scrolls.interpreter.run.Interpreter.interpret_statement`.
 
 #### Expansion Calls
 
@@ -79,7 +79,7 @@ print "9 + 10 is:" $(+ 9 10)
 ```
 
 In the above example, `select` and `+` are expansion calls. Expansion calls always return strings. In `scrolls.interpreter`
-terms, expansion calls are calls for which `CallHandler.handle_call` returns `str`. Expansion calls are **not**
+terms, expansion calls are calls for which `scrolls.interpreter.callhandler.CallHandler.handle_call` returns `str`. Expansion calls are **not**
 counted as statements, and must be used in the context of either a command call, or control call.
 
 Note that even arithmetic operations like `+ - * /` are implemented as expansion calls.
@@ -103,7 +103,7 @@ Control calls are counted as statements.
 
 ### Implementing Call Handlers
 
-The bare minimum for implementing a call handler is to implement the `CallHandler` protocol. Call handlers must implement
+The bare minimum for implementing a call handler is to implement the `scrolls.interpreter.callhandler.CallHandler` protocol. Call handlers must implement
 two functions:
 
 - `handle_call`: Called when a call is invoked.
@@ -145,9 +145,9 @@ printargs foo bar "this is one argument" baz
 
 ### Using `CallbackCallHandler`
 
-The `CallHandler` protocol is deliberately left simple for maximum flexibility, but it's also kind of awkward for most
-uses. A basic call handler is provided to handle boilerplate, `CallbackCallHandler`. 
-Let's implement `printargs` with `CallbackCallHandler`.
+The `scrolls.interpreter.callhandler.CallHandler` protocol is deliberately left simple for maximum flexibility, but it's also kind of awkward for most
+uses. A basic call handler is provided to handle boilerplate, `scrolls.interpreter.callhandler.CallbackCallHandler`. 
+Let's implement `printargs` with `scrolls.interpreter.callhandler.CallbackCallHandler`.
 
 ```py
 import scrolls
@@ -182,5 +182,5 @@ printargs foo bar "this is one argument" baz
 # baz
 ```
 
-`CallbackCallHandler` may be considered the base call handler class for most purposes. All builtin language features
-are implemented with `CallbackCallHandler`. See `scrolls.builtins`.
+`scrolls.interpreter.callhandler.CallbackCallHandler` may be considered the base call handler class for most purposes. All builtin language features
+are implemented with `scrolls.interpreter.callhandler.CallbackCallHandler`. See `scrolls.builtins`.

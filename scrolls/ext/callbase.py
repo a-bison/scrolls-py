@@ -189,7 +189,7 @@ class OptionModifier(enum.Enum):
 
 class CallBaseCallHandler(scrolls.CallbackCallHandler[T_co]):
     """
-    The primary `scrolls.interpreter.CallHandler` implementation for callbase.
+    The primary `scrolls.interpreter.callhandler.CallHandler` implementation for callbase.
     Only `CallBase` subclasses may be added to this handler. See
     [Basic Usage](#basic-usage)
     """
@@ -240,7 +240,7 @@ class CallBaseCallHandler(scrolls.CallbackCallHandler[T_co]):
         """
         Get the consume rest triggers for all `CallBase` instances attached
         to this handler. This must be passed into the `scrolls.ast.Tokenizer`
-        used to tokenize a script. If using `scrolls.interpreter.Interpreter.run`,
+        used to tokenize a script. If using `scrolls.interpreter.run.Interpreter.run`,
         this must be passed into the `consume_rest_triggers` argument.
         """
         return self._consume_rest_triggers

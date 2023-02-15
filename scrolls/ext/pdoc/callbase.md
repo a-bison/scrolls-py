@@ -31,7 +31,7 @@ def print_(ctx: scrolls.InterpreterContext, args: typing.Sequence[typing.Any]) -
 
 Callbase handles the job of parsing arguments, and allows some additional information
 to be attached to Scrolls calls. Using callbase also means you do not need to implement
-`scrolls.interpreter.CallHandler` yourself in order to get started extending Scrolls.
+`scrolls.interpreter.callhandler.CallHandler` yourself in order to get started extending Scrolls.
 
 None of the calls defined in `scrolls.builtins` use this extension. It is solely for
 external users.
