@@ -84,7 +84,7 @@ class OptionError(Exception):
     Base class for errors parsing arguments.
 
     Args:
-        node: The `scrolls.ast.ASTNode` corresponding to the argument that failed to parse.
+        node: The `scrolls.ast.syntax.ASTNode` corresponding to the argument that failed to parse.
     """
     def __init__(self, node: scrolls.ASTNode):
         self.node = node
@@ -239,7 +239,7 @@ class CallBaseCallHandler(scrolls.CallbackCallHandler[T_co]):
     def consume_rest_triggers(self) -> t.Mapping[str, int]:
         """
         Get the consume rest triggers for all `CallBase` instances attached
-        to this handler. This must be passed into the `scrolls.ast.Tokenizer`
+        to this handler. This must be passed into the `scrolls.ast.tokenizer.Tokenizer`
         used to tokenize a script. If using `scrolls.interpreter.run.Interpreter.run`,
         this must be passed into the `consume_rest_triggers` argument.
         """
@@ -496,7 +496,7 @@ def consume_option(
     Args:
         option: The option to parse.
         args: The arguments to consume from.
-        nodes: A map of argument numbers to source `scrolls.ast.ASTNode` instances.
+        nodes: A map of argument numbers to source `scrolls.ast.ast_constants.ASTNode` instances.
         arg_num: The arg number of `args[0]`.
 
     Returns:

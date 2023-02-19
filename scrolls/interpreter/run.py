@@ -1,5 +1,5 @@
 """
-Code relating to the execution of `scrolls.ast.AST` objects.
+Code relating to the execution of `scrolls.ast.syntax.AST` objects.
 """
 
 import logging
@@ -8,7 +8,7 @@ import typing as t
 
 from .. import ast
 from .. import errors as base_errors
-from . import callhandler, errors, state, struct
+from . import callhandler, interpreter_errors, state, struct
 
 __all__ = (
     "Interpreter",
@@ -31,7 +31,7 @@ class Interpreter:
 
         statement_limit: The number of statements allowed while executing a script. This is counted in the
             `scrolls.interpreter.state.InterpreterContext` object for a given run. If the number of executed statements exceeds this, an
-            `scrolls.interpreter.errors.InterpreterError` will be raised. If set to zero, then there is no statement limit.
+            `scrolls.interpreter.interpreter_errors.InterpreterError` will be raised. If set to zero, then there is no statement limit.
 
         call_depth_limit: The number of levels deep the call stack is allowed to go. This is used to prevent
             denial of service through infinite recursion. If zero, then call depth is unlimited.
@@ -199,10 +199,10 @@ class Interpreter:
                 stream.set_statement()
 
                 self.interpret_statement(context, statement_node)
-            except errors.InterpreterStop:
+            except interpreter_errors.InterpreterStop:
                 return
-            except errors.InterpreterReturn:
-                e = errors.InterpreterError(
+            except interpreter_errors.InterpreterReturn:
+                e = interpreter_errors.InterpreterError(
                     context,
                     f"returning only allowed in functions"
                 )
@@ -229,7 +229,7 @@ class Interpreter:
         consume_rest_triggers: t.Mapping[str, int] = types.MappingProxyType({})
     ) -> str:
         """
-        Returns a JSON-formatted string showing the full `scrolls.ast.ASTNode` structure of a parsed script, including
+        Returns a JSON-formatted string showing the full `scrolls.ast.syntax.ASTNode` structure of a parsed script, including
         `consume_rest_triggers`.
 
         .. WARNING::
@@ -263,11 +263,11 @@ class Interpreter:
 
         try:
             self.interpret_root(context, tree.root)
-        except errors.InterpreterStop:
+        except interpreter_errors.InterpreterStop:
             logger.debug("Interpreter stop raised.")
             pass
-        except errors.InterpreterReturn:
-            raise errors.InterpreterError(
+        except interpreter_errors.InterpreterReturn:
+            raise interpreter_errors.InterpreterError(
                 context,
                 f"returning only allowed in functions"
             )
@@ -275,7 +275,7 @@ class Interpreter:
         return context
 
     def interpret_root(self, context: state.InterpreterContext, node: ast.ASTNode) -> None:
-        """Interpret an `scrolls.ast.ASTNode` of type `scrolls.ast.ASTNodeType.ROOT`."""
+        """Interpret an `scrolls.ast.syntax.ASTNode` of type `scrolls.ast.ast_constants.ASTNodeType.ROOT`."""
         self.interpret_block(context, node)
 
     def interpret_call(
@@ -305,7 +305,7 @@ class Interpreter:
         """
 
         if node.type != expected_node_type:
-            raise errors.InternalInterpreterError(
+            raise interpreter_errors.InternalInterpreterError(
                 context,
                 f"interpret_call: name: Expected {expected_node_type.name}, got {node.type.name}"
             )
@@ -317,7 +317,7 @@ class Interpreter:
         raw_call = list(self.interpret_string_or_expansion(context, name_node))
 
         if not raw_call:
-            raise errors.InterpreterError(
+            raise interpreter_errors.InterpreterError(
                 context,
                 f"Call name must not expand to empty string."
             )
@@ -344,7 +344,7 @@ class Interpreter:
 
         context.push_call()
         if self.over_call_depth_limit(context):
-            raise errors.InterpreterError(
+            raise interpreter_errors.InterpreterError(
                 context,
                 f"Maximum call stack depth ({self.call_depth_limit}) exceeded."
             )
@@ -355,11 +355,11 @@ class Interpreter:
             handler = call_handler_container.get_for_call(call_name)
         except KeyError:
             context.current_node = name_node
-            raise errors.MissingCallError(context, expected_node_type.name, call_name)
+            raise interpreter_errors.MissingCallError(context, expected_node_type.name, call_name)
 
         try:
             result: T_co = handler.handle_call(context)
-        except errors.InterpreterReturn:
+        except interpreter_errors.InterpreterReturn:
             # Ensure call stack is properly changed even on returns
             context.pop_call()
 
@@ -370,7 +370,7 @@ class Interpreter:
         return result
 
     def interpret_control(self, context: state.InterpreterContext, node: ast.ASTNode) -> None:
-        """Interpret an `scrolls.ast.ASTNode` of type `scrolls.ast.ASTNodeType.CONTROL_CALL`."""
+        """Interpret an `scrolls.ast.syntax.ASTNode` of type `scrolls.ast.ast_constants.ASTNodeType.CONTROL_CALL`."""
         self.interpret_call(
             self.control_handlers,
             context,
@@ -380,7 +380,7 @@ class Interpreter:
         )
 
     def interpret_command(self, context: state.InterpreterContext, node: ast.ASTNode) -> None:
-        """Interpret an `scrolls.ast.ASTNode` of type `scrolls.ast.ASTNodeType.COMMAND_CALL`."""
+        """Interpret an `scrolls.ast.syntax.ASTNode` of type `scrolls.ast.ast_constants.ASTNodeType.COMMAND_CALL`."""
         self.interpret_call(
             context.all_commands,
             context,
@@ -389,19 +389,19 @@ class Interpreter:
         )
 
     def interpret_variable_reference(self, context: state.InterpreterContext, node: ast.ASTNode) -> str:
-        """Interpret an `scrolls.ast.ASTNode` of type `scrolls.ast.ASTNodeType.EXPANSION_VAR`."""
+        """Interpret an `scrolls.ast.syntax.ASTNode` of type `scrolls.ast.ast_constants.ASTNodeType.EXPANSION_VAR`."""
         context.current_node = node
 
         var_name = " ".join(self.interpret_string_or_expansion(context, node.children[0]))
         try:
             return context.get_var(var_name)
         except KeyError:
-            raise errors.InterpreterError(
+            raise interpreter_errors.InterpreterError(
                 context, f"No such variable {var_name}."
             )
 
     def interpret_expansion_call(self, context: state.InterpreterContext, node: ast.ASTNode) -> str:
-        """Interpret an `scrolls.ast.ASTNode` of type `scrolls.ast.ASTNodeType.EXPANSION_CALL`."""
+        """Interpret an `scrolls.ast.syntax.ASTNode` of type `scrolls.ast.ast_constants.ASTNodeType.EXPANSION_CALL`."""
         result = self.interpret_call(
             context.all_expansions,
             context,
@@ -412,8 +412,9 @@ class Interpreter:
         return result
 
     def interpret_sub_expansion(self, context: state.InterpreterContext, node: ast.ASTNode) -> str:
-        """Utility. Interprets an expansion child node, which may be either `scrolls.ast.ASTNodeType.EXPANSION_VAR` or
-        `scrolls.ast.ASTNodeType.EXPANSION_CALL`.
+        """Utility. Interprets an expansion child node, which may be either
+        `scrolls.ast.ast_constants.ASTNodeType.EXPANSION_VAR` or
+        `scrolls.ast.ast_constants.ASTNodeType.EXPANSION_CALL`.
         """
         context.current_node = node
 
@@ -422,23 +423,23 @@ class Interpreter:
         elif node.type == ast.ASTNodeType.EXPANSION_CALL:
             return self.interpret_expansion_call(context, node)
         else:
-            raise errors.InternalInterpreterError(
+            raise interpreter_errors.InternalInterpreterError(
                 context,
                 f"Bad expansion node type {node.type.name}"
             )
 
     def interpret_expansion(self, context: state.InterpreterContext, node: ast.ASTNode) -> t.Sequence[str]:
-        """Interpret an `scrolls.ast.ASTNode` of type `scrolls.ast.ASTNodeType.EXPANSION`."""
+        """Interpret an `scrolls.ast.syntax.ASTNode` of type `scrolls.ast.ast_constants.ASTNodeType.EXPANSION`."""
         context.current_node = node
 
         multi_node, expansion_node = node.children
 
-        if multi_node.type == ast.ASTNodeType.EXPANSION_MULTI:
+        if multi_node.type == ast.ASTNodeType.EXPANSION_SPREAD:
             multi = True
         elif multi_node.type == ast.ASTNodeType.EXPANSION_SINGLE:
             multi = False
         else:
-            raise errors.InternalInterpreterError(
+            raise interpreter_errors.InternalInterpreterError(
                 context,
                 f"Bad expansion multi_node type {multi_node.type.name}"
             )
@@ -450,8 +451,9 @@ class Interpreter:
             return [string]
 
     def interpret_string_or_expansion(self, context: state.InterpreterContext, node: ast.ASTNode) -> t.Sequence[str]:
-        """Utility. Interprets call names and arguments, which may be either `scrolls.ast.ASTNodeType.STRING` or
-        `scrolls.ast.ASTNodeType.EXPANSION`
+        """Utility. Interprets call names and arguments, which may be either
+        `scrolls.ast.ast_constants.ASTNodeType.STRING` or
+        `scrolls.ast.ast_constants.ASTNodeType.EXPANSION`
         """
 
         context.current_node = node
@@ -461,20 +463,20 @@ class Interpreter:
         elif node.type == ast.ASTNodeType.EXPANSION:
             return self.interpret_expansion(context, node)
         else:
-            raise errors.InternalInterpreterError(
+            raise interpreter_errors.InternalInterpreterError(
                 context, f"Bad node type for string_or_expansion: {node.type.name}"
             )
 
     def interpret_block(self, context: state.InterpreterContext, node: ast.ASTNode) -> None:
-        """Interpret an `scrolls.ast.ASTNode` of type `scrolls.ast.ASTNodeType.BLOCK`."""
+        """Interpret an `scrolls.ast.syntax.ASTNode` of type `scrolls.ast.ast_constants.ASTNodeType.BLOCK`."""
         context.current_node = node
 
         for sub_statement in context.current_node.children:
             self.interpret_statement(context, sub_statement)
 
     def interpret_statement(self, context: state.InterpreterContext, node: ast.ASTNode) -> None:
-        """Utility. Interprets Scrolls statements, which may be `scrolls.ast.ASTNodeType.CONTROL_CALL`,
-        `scrolls.ast.ASTNodeType.COMMAND_CALL`, or `scrolls.ast.ASTNodeType.BLOCK`.
+        """Utility. Interprets Scrolls statements, which may be `scrolls.ast.ast_constants.ASTNodeType.CONTROL_CALL`,
+        `scrolls.ast.ast_constants.ASTNodeType.COMMAND_CALL`, or `scrolls.ast.ast_constants.ASTNodeType.BLOCK`.
 
         More often than not, this is the function that control calls will use to run the statement passed to
         `scrolls.interpreter.state.InterpreterContext.control_node`. See `scrolls.builtins.BuiltinControlHandler` for examples.
@@ -490,13 +492,13 @@ class Interpreter:
         elif node_type == ast.ASTNodeType.BLOCK:
             self.interpret_block(context, context.current_node)
         else:
-            raise errors.InternalInterpreterError(
+            raise interpreter_errors.InternalInterpreterError(
                 context, f"Bad statement type {node_type.name}"
             )
 
         context.statement_count += 1
         if self.over_statement_limit(context):
-            raise errors.InterpreterError(
+            raise interpreter_errors.InterpreterError(
                 context,
                 f"Exceeded maximum statement limit of {self.statement_limit}."
             )

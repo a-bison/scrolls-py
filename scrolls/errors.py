@@ -8,17 +8,11 @@ script syntax or interpreting scripts will inherit from `PositionalError`.
 
 import functools
 import math
-import typing as t
 
 __all__ = (
     "format_positional_error",
     "ScrollError",
-    "PositionalError",
-    "ParseError",
-    "ParseEofError",
-    "ParseExpectError",
-    "TokenizeError",
-    "TokenizeEofError"
+    "PositionalError"
 )
 
 
@@ -133,46 +127,3 @@ class PositionalError(ScrollError):
         )
 
 
-class TokenizeError(PositionalError):
-    """Generic error raised while lexing/tokenizing a script."""
-    pass
-
-
-class TokenizeEofError(TokenizeError):
-    """Raised when the lexer/tokenizer hits an unexpected EOF (end of script)."""
-    pass
-
-
-class ParseError(PositionalError):
-    """Generic error raised during the parsing stage."""
-    def __init__(
-        self,
-        line: int,
-        pos: int,
-        string: str,
-        message: str
-    ):
-        super().__init__(
-            line,
-            pos,
-            string,
-            message
-        )
-
-        # IMPLEMENTATION DETAIL
-        # Sets whether this parse error is fatal or not. Defaults to `False`.
-        # If `True`, a `ParseError` will cause all parsing to stop immediately and
-        # raise the error. If `fatal`  is `False`, a parse function may try alternative
-        # parsing. Internally, `fatal = False` is used by `parse_choice` to determine
-        # which parsing function to choose. See `scrolls.ast` for more details.
-        self.fatal = False
-
-
-class ParseEofError(ParseError):
-    """Raised when an EOF is encountered too early while parsing a script."""
-    pass
-
-
-class ParseExpectError(ParseError):
-    """Raised when an unexpected token is encountered during parsing."""
-    pass

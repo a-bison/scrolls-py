@@ -5,7 +5,7 @@ The interpreter implementation.
 """
 
 from .callhandler import *
-from .errors import *
+from .interpreter_errors import *
 from .run import *
 from .state import *
 from .struct import *

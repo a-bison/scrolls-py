@@ -23,7 +23,7 @@ T = t.TypeVar("T")
 class ArgSourceMap(dict[int, T], t.Generic[T]):
     """A utility class that maps argument numbers to some source.
 
-    The main purpose of this container is to map call arguments to the `scrolls.ast.ASTNode` they came from.
+    The main purpose of this container is to map call arguments to the `scrolls.ast.syntax.ASTNode` they came from.
     This class is typically used to accurately point to a node in the case of a call error.
 
     Usage
@@ -80,10 +80,10 @@ class CallContext:
     """The arguments passed into this call."""
 
     arg_nodes: ArgSourceMap[ast.ASTNode]
-    """A map of argument indices to the `scrolls.ast.ASTNode` they came from."""
+    """A map of argument indices to the `scrolls.ast.syntax.ASTNode` they came from."""
 
     control_node: t.Optional[ast.ASTNode] = None
-    """If this call is a control call, this will contain the call's `scrolls.ast.ASTNode` parameter."""
+    """If this call is a control call, this will contain the call's `scrolls.ast.syntax.ASTNode` parameter."""
 
     return_value: t.Optional[t.Any] = None
     """The return value set by a runtime call."""

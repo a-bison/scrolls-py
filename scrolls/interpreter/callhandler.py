@@ -9,7 +9,7 @@ import typing as t
 import uuid
 
 from .. import ast
-from . import errors, state
+from . import interpreter_errors, state
 
 __all__ = (
     "CallHandler",
@@ -143,13 +143,13 @@ class RuntimeCallHandler(t.Generic[T_co]):
         # Arg length check
         if call.collect_param is None:
             if len(call.params) != len(context.args):
-                raise errors.InterpreterError(
+                raise interpreter_errors.InterpreterError(
                     context,
                     f"{context.call_name}: Invalid # of arguments (expected {len(call.params)})"
                 )
         else:
             if len(context.args) < len(call.params) - 1:
-                raise errors.InterpreterError(
+                raise interpreter_errors.InterpreterError(
                     context,
                     f"{context.call_name}: Invalid # of arguments (expected at least {len(call.params)})"
                 )
@@ -175,7 +175,7 @@ class RuntimeCallHandler(t.Generic[T_co]):
         try:
             # Interpret the body of the call.
             context.interpreter.interpret_statement(context, call.node)
-        except errors.InterpreterReturn:
+        except interpreter_errors.InterpreterReturn:
             pass
 
         context.vars.destroy_scope()

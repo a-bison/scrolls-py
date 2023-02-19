@@ -32,6 +32,7 @@ incompatible changes may be made at any time.
 - `scrolls.InterpreterError` now produces a stack trace in addition to pointing out
   the error in the code.
 - Heavily refactored `scrolls.interpreter`, breaking it up into several parts.
+- Heavily refactored `scrolls.ast`, breaking it up into several parts.
 
 ### FIXED
 - Fix ineffecient creation of `scrolls.ChoiceCallHandlerContainer` instances
@@ -39,7 +40,8 @@ incompatible changes may be made at any time.
 - Fix typo in documentation of `scrolls.InterpreterContext.runtime_commands`.
 - Return protocol instead of base class for `scrolls.InterpreterContext.runtime_commands`
   and `scrolls.InterpreterContext.runtime_expansions`
-- Fix some missing links in documentation.
+- Fix many missing links in documentation.
+- Fix some inaccuracies in parsing documentation.
 
 ## [0.3.1] - 2023-02-05
 **Beta Release** - `0.x.y` should not be considered stable, and backwards

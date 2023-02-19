@@ -8,7 +8,7 @@ import pathlib
 import typing as t
 
 from .. import ast
-from . import callhandler, errors, struct
+from . import callhandler, interpreter_errors, struct
 
 if t.TYPE_CHECKING:
     from . import run
@@ -79,13 +79,13 @@ class InterpreterContext:
         p = pathlib.Path(path)
 
         if not p.exists():
-            raise errors.InterpreterError(
+            raise interpreter_errors.InterpreterError(
                 self,
                 f"{path} does not exist"
             )
 
         if not p.is_file():
-            raise errors.InterpreterError(
+            raise interpreter_errors.InterpreterError(
                 self,
                 f"{path} is not a file"
             )
@@ -107,7 +107,7 @@ class InterpreterContext:
         Closes a file for this context.
         """
         if fid not in self._open_files:
-            raise errors.InterpreterError(
+            raise interpreter_errors.InterpreterError(
                 self,
                 f"file already closed, or not open (fid {fid})"
             )
@@ -120,7 +120,7 @@ class InterpreterContext:
         Gets an open file for this context.
         """
         if fid not in self._open_files:
-            raise errors.InterpreterError(
+            raise interpreter_errors.InterpreterError(
                 self,
                 f"file already closed, or not open (fid {fid})"
             )
@@ -136,7 +136,8 @@ class InterpreterContext:
 
         - **Should** always perform their work in their own variable scope. See `scrolls.interpreter.struct.ScopedVarStore.new_scope`.
         - **Must** set the `scrolls.interpreter.struct.CallContext.runtime_call` parameter to `True`.
-        - **Must** cease executing if an `scrolls.interpreter.errors.InterpreterStop` or `scrolls.interpreter.errors.InterpreterReturn` is raised.
+        - **Must** cease executing if an `scrolls.interpreter.interpreter_errors.InterpreterStop` or
+          `scrolls.interpreter.interpreter_errors.InterpreterReturn` is raised.
         """
         return self._runtime_command_handlers
 
@@ -147,7 +148,7 @@ class InterpreterContext:
         Runtime expansions follow the same requirements as commands, plus:
 
         - **Must** set the `scrolls.interpreter.struct.CallContext.return_value` parameter upon call completion.
-        - **Must** catch `scrolls.interpreter.errors.InterpreterReturn` and set the return value on this exception.
+        - **Must** catch `scrolls.interpreter.interpreter_errors.InterpreterReturn` and set the return value on this exception.
         """
         return self._runtime_expansion_handlers
 
@@ -160,10 +161,10 @@ class InterpreterContext:
         Plugins wishing to programmatically call commands should use this.
 
         Raises:
-            scrolls.interpreter.errors.InternalInterpreterError: If this property is not initialized.
+            scrolls.interpreter.interpreter_errors.InternalInterpreterError: If this property is not initialized.
         """
         if self._all_command_handlers is None:
-            raise errors.InternalInterpreterError(
+            raise interpreter_errors.InternalInterpreterError(
                 self, "Bad context: _all_command_handlers not initialized."
             )
 
@@ -178,10 +179,10 @@ class InterpreterContext:
         Plugins wishing to programatically call expansions should use this.
 
         Raises:
-            scrolls.interpreter.errors.InternalInterpreterError: If this property is not initialized.
+            scrolls.interpreter.interpreter_errors.InternalInterpreterError: If this property is not initialized.
         """
         if self._all_expansion_handlers is None:
-            raise errors.InternalInterpreterError(
+            raise interpreter_errors.InternalInterpreterError(
                 self, "Bad context: _all_expansion_handlers not initialized."
             )
 
@@ -212,10 +213,10 @@ class InterpreterContext:
         The interpreter running using this context.
 
         Raises:
-            scrolls.interpreter.errors.InternalInterpreterError: If this property is not initialized.
+            scrolls.interpreter.interpreter_errors.InternalInterpreterError: If this property is not initialized.
         """
         if self._interpreter is None:
-            raise errors.InternalInterpreterError(
+            raise interpreter_errors.InternalInterpreterError(
                 self, "Interpreter is not initialized."
             )
 
@@ -228,13 +229,13 @@ class InterpreterContext:
     @property
     def current_node(self) -> ast.ASTNode:
         """
-        The current `scrolls.ast.ASTNode` being interpreted.
+        The current `scrolls.ast.syntax.ASTNode` being interpreted.
 
         Raises:
-            scrolls.interpreter.errors.InternalInterpreterError: If there is no current node.
+            scrolls.interpreter.interpreter_errors.InternalInterpreterError: If there is no current node.
         """
         if self._current_node is None:
-            raise errors.InternalInterpreterError(
+            raise interpreter_errors.InternalInterpreterError(
                 self, "Current node is not initialized."
             )
 
@@ -246,7 +247,7 @@ class InterpreterContext:
 
     def _call_check(self) -> None:
         if self._call_context is None:
-            raise errors.InternalInterpreterError(
+            raise interpreter_errors.InternalInterpreterError(
                 self, "Current context is not a call."
             )
 
@@ -278,7 +279,7 @@ class InterpreterContext:
         """
         self._call_check()
         if not self.call_stack:
-            raise errors.InternalInterpreterError(
+            raise interpreter_errors.InternalInterpreterError(
                 self, f"Cannot get parent of base call \"{self.call_context.call_name}\""
             )
 
@@ -303,7 +304,7 @@ class InterpreterContext:
     @property
     def arg_nodes(self) -> struct.ArgSourceMap[ast.ASTNode]:
         """
-        The `scrolls.ast.ASTNode` instances the current call's arguments came from.
+        The `scrolls.ast.syntax.ASTNode` instances the current call's arguments came from.
         """
         self._call_check()
         return self.call_context.arg_nodes
@@ -311,13 +312,13 @@ class InterpreterContext:
     @property
     def control_node(self) -> ast.ASTNode:
         """
-        If the current context is a control call, this will contain the `scrolls.ast.ASTNode` parameter passed into it.
+        If the current context is a control call, this will contain the `scrolls.ast.syntax.ASTNode` parameter passed into it.
 
         Raises:
-            scrolls.interpreter.errors.InternalInterpreterError: If the current context is not a call.
+            scrolls.interpreter.interpreter_errors.InternalInterpreterError: If the current context is not a call.
         """
         if self.call_context.control_node is None:
-            raise errors.InternalInterpreterError(
+            raise interpreter_errors.InternalInterpreterError(
                 self, "Current context is not a control call."
             )
 
@@ -380,10 +381,10 @@ class InterpreterContext:
             Provided for advanced usage, this is usually done automatically. Typical users will never need to call this.
 
         Raises:
-            scrolls.interpreter.errors.InternalInterpreterError: If not calls have been pushed.
+            scrolls.interpreter.interpreter_errors.InternalInterpreterError: If not calls have been pushed.
         """
         if not self._call_stack:
-            raise errors.InternalInterpreterError(
+            raise interpreter_errors.InternalInterpreterError(
                 self,
                 f"Cannot pop call. No calls pushed."
             )
@@ -399,12 +400,12 @@ class InterpreterContext:
         Sets the return value in the first runtime call found in the stack.
 
         Raises:
-            scrolls.interpreter.errors.InterpreterError: If outside a call context, no call stack, or no runtime call contexts found.
+            scrolls.interpreter.interpreter_errors.InterpreterError: If outside a call context, no call stack, or no runtime call contexts found.
         """
         self._call_check()
 
         if not self.call_stack:
-            raise errors.InterpreterError(
+            raise interpreter_errors.InterpreterError(
                 self,
                 f"cannot return, no call stack (outside calls)"
             )
@@ -414,7 +415,7 @@ class InterpreterContext:
                 ctx.return_value = retval
                 return
 
-        raise errors.InterpreterError(
+        raise interpreter_errors.InterpreterError(
             self,
             f"cannot return outside of function"
         )

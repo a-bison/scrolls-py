@@ -1,7 +1,7 @@
 """
 Interpreter-specific errors.
 """
-from .. import errors
+from .. import errors as base_errors
 from . import state
 
 __all__ = (
@@ -13,7 +13,7 @@ __all__ = (
 )
 
 
-class InterpreterError(errors.PositionalError):
+class InterpreterError(base_errors.PositionalError):
     """
     A generic interpreter error. All interpreter errors should subclass this.
     """
@@ -75,7 +75,7 @@ class InternalInterpreterError(InterpreterError):
         )
 
 
-class InterpreterStop(errors.ScrollError):
+class InterpreterStop(base_errors.ScrollError):
     """
     An exception raised to stop the interpreter.
     """
@@ -83,7 +83,7 @@ class InterpreterStop(errors.ScrollError):
         super().__init__("InterpreterStop")
 
 
-class InterpreterReturn(errors.ScrollError):
+class InterpreterReturn(base_errors.ScrollError):
     """
     An exception raised to signal a return from a runtime call.
     """
